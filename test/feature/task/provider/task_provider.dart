@@ -1,0 +1,133 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/api/api_service.dart';
+import '../../../core/api/api_endpoints.dart';
+
+class TaskTitleNotifier extends Notifier<String> {
+  @override
+  String build() => 'All Task';
+
+  void setTitle(String newTitle) {
+    state = newTitle;
+  }
+}
+
+final taskTitleProvider = NotifierProvider<TaskTitleNotifier, String>(() {
+  return TaskTitleNotifier();
+});
+
+class TaskScreenState {
+  final List<dynamic> tasks;
+  final int currentPage;
+  final int totalPages;
+  final bool isLoading;
+  final bool isLoadMore;
+  final String search;
+
+  TaskScreenState({
+    this.tasks = const [],
+    this.currentPage = 1,
+    this.totalPages = 1,
+    this.isLoading = false,
+    this.isLoadMore = false,
+    this.search = '',
+  });
+
+  TaskScreenState copyWith({
+    List<dynamic>? tasks,
+    int? currentPage,
+    int? totalPages,
+    bool? isLoading,
+    bool? isLoadMore,
+    String? search,
+  }) {
+    return TaskScreenState(
+      tasks: tasks ?? this.tasks,
+      currentPage: currentPage ?? this.currentPage,
+      totalPages: totalPages ?? this.totalPages,
+      isLoading: isLoading ?? this.isLoading,
+      isLoadMore: isLoadMore ?? this.isLoadMore,
+      search: search ?? this.search,
+    );
+  }
+}
+
+class TaskScreenNotifier extends Notifier<TaskScreenState> {
+  @override
+  TaskScreenState build() {
+    return TaskScreenState();
+  }
+
+  Future<void> fetchTasks({bool refresh = false}) async {
+    if (refresh) {
+      state = state.copyWith(isLoading: true, currentPage: 1, tasks: []);
+    } else {
+      if (state.isLoadMore || state.isLoading) return;
+      if (state.currentPage >= state.totalPages) return;
+      state = state.copyWith(isLoadMore: true);
+    }
+
+    try {
+      final apiService = ref.read(apiServiceProvider);
+      final pageToLoad = refresh ? 1 : state.currentPage + 1;
+
+      final Map<String, dynamic> queryParameters = {
+        'page': pageToLoad,
+        'limit': 10,
+        'search': state.search,
+      };
+
+      final currentTitle = ref.read(taskTitleProvider);
+      String endpoint = ApiEndpoints.getTasks;
+      if (currentTitle == 'Customer Task' || currentTitle == 'Customer Tasks') {
+        endpoint = ApiEndpoints.customerTasks;
+      }
+
+      final response = await apiService.get(
+        endpoint,
+        queryParameters: queryParameters,
+      );
+      final dynamic responseData = response.data;
+      Map<String, dynamic> responseMap;
+      if (responseData is Map) {
+        responseMap = Map<String, dynamic>.from(responseData);
+      } else {
+        responseMap = {};
+      }
+
+      if (responseMap['success'] == true) {
+        final data = responseMap['data'] ?? {};
+        final List<dynamic> loadedTasks = data['tasks'] ?? [];
+        final int totalPages = data['totalPages'] ?? 1;
+        final int currentPage = data['currentPage'] ?? pageToLoad;
+
+        final newTasksList = refresh
+            ? loadedTasks
+            : [...state.tasks, ...loadedTasks];
+
+        state = state.copyWith(
+          tasks: newTasksList,
+          currentPage: currentPage,
+          totalPages: totalPages,
+          isLoading: false,
+          isLoadMore: false,
+        );
+      } else {
+        state = state.copyWith(isLoading: false, isLoadMore: false);
+      }
+    } catch (e) {
+      debugPrint("Error fetching tasks: $e");
+      state = state.copyWith(isLoading: false, isLoadMore: false);
+    }
+  }
+
+  void setSearch(String search) {
+    state = state.copyWith(search: search);
+    fetchTasks(refresh: true);
+  }
+}
+
+final taskScreenProvider =
+    NotifierProvider<TaskScreenNotifier, TaskScreenState>(() {
+      return TaskScreenNotifier();
+    });
