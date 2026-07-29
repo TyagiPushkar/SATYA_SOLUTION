@@ -309,7 +309,6 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
               }
               final typeNames = types.map((t) => t.name).toList();
 
-              // Ensure selected value is valid, if not, set to first one
               if (_formValues[field.name] == null ||
                   !typeNames.contains(_formValues[field.name])) {
                 _formValues[field.name] = typeNames.first;
@@ -390,40 +389,85 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
           );
     }
 
+
     if (field.name == 'customerId') {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildLabel(labelText),
-          InkWell(
-            onTap: _showCustomerPicker,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: _errors[field.name] != null
-                      ? Colors.red
-                      : AppColors.borderGrey,
-                ),
-                borderRadius: BorderRadius.circular(8),
-                color: AppColors.white,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  AppText(
-                    _selectedCustomer ??
-                        (field.placeholder.isNotEmpty
-                            ? field.placeholder
-                            : 'Select Customer'),
-                    color: _selectedCustomer == null
-                        ? Colors.black38
-                        : AppColors.black,
+          Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: _showCustomerPicker,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF2F4F7),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: _errors[field.name] != null
+                            ? Colors.red
+                            : Colors.transparent,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: AppText(
+                            _selectedCustomer ??
+                                (field.placeholder.isNotEmpty
+                                    ? field.placeholder
+                                    : 'Select Customer'),
+                            color: _selectedCustomer == null
+                                ? Colors.black38
+                                : AppColors.black,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const Icon(
+                          Icons.arrow_drop_down,
+                          color: Color(0xFF8E8E93),
+                          size: 22,
+                        ),
+                      ],
+                    ),
                   ),
-                  const Icon(Icons.keyboard_arrow_down, color: AppColors.grey),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(width: 10),
+              InkWell(
+                onTap: () async {
+                  final result = await context.push('/add-customer');
+                  if (result != null && result is Map) {
+                    final customerMap = Map<String, String>.from(result);
+                    setState(() {
+                      _selectedCustomer = customerMap['name'];
+                      _formValues['customerId'] = customerMap['id'];
+                      _errors['customerId'] = null;
+                    });
+                    ref.invalidate(customersListProvider);
+                  }
+                },
+                child: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0066D4),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.assignment_ind,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
+              ),
+            ],
           ),
           _buildErrorText(field.name),
           const AppSizeBox.h(16),

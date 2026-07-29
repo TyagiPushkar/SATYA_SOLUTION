@@ -8,6 +8,7 @@ import '../../task/provider/task_provider.dart';
 
 import '../../auth/provider/auth_provider.dart';
 import '../../attendance/provider/punch_in_provider.dart';
+import '../../attendance/provider/sync_provider.dart';
 
 class HomeContent extends ConsumerWidget {
   const HomeContent({super.key});
@@ -570,6 +571,7 @@ class HomeContent extends ConsumerWidget {
   }
 
   List<Widget> _buildEmployeeDrawerItems(BuildContext context, WidgetRef ref) {
+    final syncState = ref.watch(syncProvider);
     return [
       ListTile(
         leading: const Icon(Icons.home_outlined, color: AppColors.primary),
@@ -661,6 +663,35 @@ class HomeContent extends ConsumerWidget {
       ),
       const Divider(height: 1),
       ListTile(
+        leading: Icon(
+          Icons.sync_rounded,
+          color: syncState.hasUnsynced ? Colors.amber.shade900 : AppColors.primary,
+        ),
+        title: AppText('Sync', fontWeight: FontWeight.bold),
+        trailing: syncState.hasUnsynced
+            ? Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade800,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${syncState.pendingCount}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              )
+            : const Icon(Icons.chevron_right),
+        onTap: () {
+          Navigator.pop(context);
+          context.push('/unsynced-records');
+        },
+      ),
+      const Divider(height: 1),
+      ListTile(
         leading: const Icon(Icons.logout, color: Colors.red),
         title: AppText(
           'Logout',
@@ -682,6 +713,7 @@ class HomeContent extends ConsumerWidget {
   }
 
   List<Widget> _buildAdminDrawerItems(BuildContext context, WidgetRef ref) {
+    final syncState = ref.watch(syncProvider);
     return [
       ListTile(
         leading: const Icon(Icons.dashboard_outlined, color: AppColors.primary),
@@ -899,6 +931,35 @@ class HomeContent extends ConsumerWidget {
         title: AppText('Reports', fontWeight: FontWeight.bold),
         trailing: const Icon(Icons.chevron_right),
         onTap: () => Navigator.pop(context),
+      ),
+      const Divider(height: 1),
+      ListTile(
+        leading: Icon(
+          Icons.sync_rounded,
+          color: syncState.hasUnsynced ? Colors.amber.shade900 : AppColors.primary,
+        ),
+        title: AppText('Sync', fontWeight: FontWeight.bold),
+        trailing: syncState.hasUnsynced
+            ? Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade800,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${syncState.pendingCount}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              )
+            : const Icon(Icons.chevron_right),
+        onTap: () {
+          Navigator.pop(context);
+          context.push('/unsynced-records');
+        },
       ),
       const Divider(height: 1),
       ListTile(

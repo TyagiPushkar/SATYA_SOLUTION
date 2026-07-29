@@ -131,3 +131,82 @@ final taskScreenProvider =
     NotifierProvider<TaskScreenNotifier, TaskScreenState>(() {
       return TaskScreenNotifier();
     });
+
+class TaskDetailsState {
+  final Map<String, dynamic>? taskData;
+  final bool isLoading;
+  final String? error;
+  final String? currentSlug;
+
+  TaskDetailsState({
+    this.taskData,
+    this.isLoading = false,
+    this.error,
+    this.currentSlug,
+  });
+
+  TaskDetailsState copyWith({
+    Map<String, dynamic>? taskData,
+    bool? isLoading,
+    String? error,
+    String? currentSlug,
+  }) {
+    return TaskDetailsState(
+      taskData: taskData ?? this.taskData,
+      isLoading: isLoading ?? this.isLoading,
+      error: error,
+      currentSlug: currentSlug ?? this.currentSlug,
+    );
+  }
+}
+
+class TaskDetailsNotifier extends Notifier<TaskDetailsState> {
+  @override
+  TaskDetailsState build() {
+    return TaskDetailsState();
+  }
+
+  Future<void> fetchTaskDetails(String slug) async {
+    if (slug.isEmpty) return;
+    state = state.copyWith(isLoading: true, error: null, currentSlug: slug);
+
+    try {
+      final apiService = ref.read(apiServiceProvider);
+      final endpoint = ApiEndpoints.getTaskDetails(slug);
+
+      final response = await apiService.get(endpoint);
+      final responseData = response.data;
+      Map<String, dynamic> responseMap = {};
+      if (responseData is Map) {
+        responseMap = Map<String, dynamic>.from(responseData);
+      }
+
+      if (responseMap['success'] == true && responseMap['data'] != null) {
+        final data = Map<String, dynamic>.from(responseMap['data']);
+        state = state.copyWith(
+          taskData: data,
+          isLoading: false,
+        );
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: responseMap['message']?.toString() ?? 'Failed to load task details',
+        );
+      }
+    } catch (e) {
+      debugPrint("Error fetching task details: $e");
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
+    }
+  }
+}
+
+final taskDetailsProvider =
+    NotifierProvider<TaskDetailsNotifier, TaskDetailsState>(() {
+  return TaskDetailsNotifier();
+});
+
+
+

@@ -7,6 +7,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../../../core/api/api_endpoints.dart';
 import '../../../core/storage/local_storage.dart';
+import '../model/unsynced_punch_record.dart';
+import 'offline_sync_service.dart';
 
 class BackgroundLocationService {
   static Future<void> initializeService() async {
@@ -71,6 +73,74 @@ void onStart(ServiceInstance service) async {
   WidgetsFlutterBinding.ensureInitialized();
   DartPluginRegistrant.ensureInitialized();
 
+  final socketUrl = ApiEndpoints.socketUrl;
+  io.Socket? socket;
+  Timer? timer;
+
+  double? lastLat;
+  double? lastLng;
+  DateTime? stationaryStartTime;
+
+  DateTime? lastOfflineSavedTime;
+
+  Future<void> sendOrSaveLocationUpdate({
+    required int empId,
+    required double latitude,
+    required double longitude,
+    required int timeInMinutes,
+    bool isStationaryTick = false,
+  }) async {
+    bool isConnected = socket != null && socket.connected == true;
+    if (isConnected) {
+      try {
+        print(
+          '=== Background WebSocket Emitting: empId=$empId, lat=$latitude, lng=$longitude, time=$timeInMinutes ===',
+        );
+        socket.emitWithAck(
+          'fieldVisit:addLocation',
+          {
+            'emp_id': empId,
+            'latitude': latitude,
+            'longitude': longitude,
+            'time': timeInMinutes,
+          },
+          ack: (response) {
+            print('=== Background Location WebSocket Ack: $response ===');
+          },
+        );
+        return;
+      } catch (e) {
+        print('=== Background Location WebSocket Emit Error: $e -> Fallback Offline Save ===');
+      }
+    }
+
+    // Socket offline/disconnected -> Save offline location record
+    final now = DateTime.now();
+    if (isStationaryTick && lastOfflineSavedTime != null) {
+      if (now.difference(lastOfflineSavedTime!).inSeconds < 30) {
+        return;
+      }
+    }
+    lastOfflineSavedTime = now;
+
+    try {
+      final record = UnsyncedPunchRecord(
+        id: 'loc_${now.millisecondsSinceEpoch}',
+        type: 'locationUpdate',
+        timestamp: now.toIso8601String(),
+        latitude: latitude,
+        longitude: longitude,
+        empId: empId,
+        timeInMinutes: timeInMinutes,
+        remarks: 'Background Location Update',
+      );
+      await OfflineSyncService.addPendingRecord(record);
+      print('=== Saved Offline Location Update: lat=$latitude, lng=$longitude, time=$timeInMinutes ===');
+    } catch (e) {
+      print('=== Error saving offline location update: $e ===');
+    }
+  }
+
   if (service is AndroidServiceInstance) {
     service.on('setAsForeground').listen((event) {
       service.setAsForegroundService();
@@ -80,17 +150,56 @@ void onStart(ServiceInstance service) async {
     });
   }
 
-  service.on('stopService').listen((event) {
+  service.on('stopService').listen((event) async {
+    try {
+      double? finalLat = lastLat;
+      double? finalLng = lastLng;
+      try {
+        final pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+            timeLimit: Duration(seconds: 2),
+          ),
+        );
+        finalLat = pos.latitude;
+        finalLng = pos.longitude;
+      } catch (_) {}
+
+      if (finalLat != null && finalLng != null && socket != null && socket.connected) {
+        final durationInSeconds = stationaryStartTime != null
+            ? DateTime.now().difference(stationaryStartTime!).inSeconds
+            : 0;
+        int minutes = durationInSeconds ~/ 60;
+        int empId = await _getEmpId();
+
+        try {
+          print(
+            '=== Final Location Emit on Stop (Punch Out): empId=$empId, lat=$finalLat, lng=$finalLng, time=$minutes ===',
+          );
+          socket.emitWithAck(
+            'fieldVisit:addLocation',
+            {
+              'emp_id': empId,
+              'latitude': finalLat,
+              'longitude': finalLng,
+              'time': minutes,
+            },
+            ack: (response) {
+              print('=== Final Location Ack on Stop: $response ===');
+            },
+          );
+        } catch (_) {}
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+    } catch (e) {
+      print('=== Final Location Emit Error on Stop: $e ===');
+    }
+
+    timer?.cancel();
+    socket?.disconnect();
+    socket?.dispose();
     service.stopSelf();
   });
-
-  final socketUrl = ApiEndpoints.socketUrl;
-  io.Socket? socket;
-  Timer? timer;
-
-  double? lastLat;
-  double? lastLng;
-  DateTime? stationaryStartTime;
 
   Future<void> performLocationCheck() async {
     final isPunchedIn = await LocalStorage.getPunchStatus();
@@ -102,25 +211,12 @@ void onStart(ServiceInstance service) async {
             .inSeconds;
         int empId = await _getEmpId();
         int minutes = durationInSeconds ~/ 60;
-        try {
-          print(
-            '=== Background WebSocket Emitting (Stop): empId=$empId, lat=$lastLat, lng=$lastLng, time=$minutes ===',
-          );
-          socket?.emitWithAck(
-            'fieldVisit:addLocation',
-            {
-              'emp_id': empId,
-              'latitude': lastLat,
-              'longitude': lastLng,
-              'time': minutes,
-            },
-            ack: (response) {
-              print('=== Background WebSocket Ack (Stop): $response ===');
-            },
-          );
-        } catch (e) {
-          print('=== Background WebSocket Emit Error (Stop): $e ===');
-        }
+        await sendOrSaveLocationUpdate(
+          empId: empId,
+          latitude: lastLat!,
+          longitude: lastLng!,
+          timeInMinutes: minutes,
+        );
       }
 
       timer?.cancel();
@@ -178,67 +274,49 @@ void onStart(ServiceInstance service) async {
       );
 
       final durationInSeconds = now.difference(stationaryStartTime!).inSeconds;
-      print(
-        '=== Background Location Check: distance=${distance.toStringAsFixed(2)}m, stationary_duration=${durationInSeconds}s ===',
-      );
+      int empId = await _getEmpId();
+      int minutes = durationInSeconds ~/ 60;
 
       if (distance < 25.0) {
-       
+        // Location unchanged (within 25m threshold)
+        // Keep counting time, do NOT send socket data while stationary!
+        print(
+          '=== Background Location Check: Location unchanged (distance=${distance.toStringAsFixed(2)}m < 25m). Stationary duration counting: ${durationInSeconds}s (${minutes}m). Skipping socket emit. ===',
+        );
       } else {
-       
-        int empId = await _getEmpId();
-        int minutes = durationInSeconds ~/ 60; 
-
-        try {
-          print(
-            '=== Location Changed! Emitting Previous Location: empId=$empId, lat=$lastLat, lng=$lastLng, time=$minutes ===',
-          );
-          socket?.emitWithAck(
-            'fieldVisit:addLocation',
-            {
-              'emp_id': empId,
-              'latitude': lastLat,
-              'longitude': lastLng,
-              'time': minutes,
-            },
-            ack: (response) {
-              print('=== Location Changed WebSocket Ack: $response ===');
-            },
-          );
-        } catch (e) {
-          print('=== Location Changed WebSocket Emit Error: $e ===');
-        }
+        // Location changed (distance >= 25m)
+        // Emit previous location with the accumulated stationary duration spent there
+        print(
+          '=== Background Location Changed (distance=${distance.toStringAsFixed(2)}m >= 25m)! Emitting previous location (lat=$lastLat, lng=$lastLng) with time=$minutes min ===',
+        );
+        await sendOrSaveLocationUpdate(
+          empId: empId,
+          latitude: lastLat!,
+          longitude: lastLng!,
+          timeInMinutes: minutes,
+          isStationaryTick: false,
+        );
 
         lastLat = lat;
         lastLng = lng;
         stationaryStartTime = now;
       }
     } else {
-   
+      // First punch in: emit initial location with time = 0
       lastLat = lat;
       lastLng = lng;
       stationaryStartTime = now;
 
       int empId = await _getEmpId();
-      try {
-        print(
-          '=== Immediate Punch In WebSocket Emitting: empId=$empId, lat=$lastLat, lng=$lastLng, time=0 ===',
-        );
-        socket?.emitWithAck(
-          'fieldVisit:addLocation',
-          {
-            'emp_id': empId,
-            'latitude': lastLat,
-            'longitude': lastLng,
-            'time': 0,
-          },
-          ack: (response) {
-            print('=== Immediate Punch In WebSocket Ack: $response ===');
-          },
-        );
-      } catch (e) {
-        print('=== Immediate Punch In WebSocket Emit Error: $e ===');
-      }
+      print(
+        '=== Initial Location Emit on Punch In: lat=$lastLat, lng=$lastLng, time=0 ===',
+      );
+      await sendOrSaveLocationUpdate(
+        empId: empId,
+        latitude: lastLat!,
+        longitude: lastLng!,
+        timeInMinutes: 0,
+      );
     }
   }
 
@@ -249,18 +327,33 @@ void onStart(ServiceInstance service) async {
       io.OptionBuilder()
           .setTransports(['websocket', 'polling'])
           .enableAutoConnect()
+          .enableReconnection()
+          .setReconnectionAttempts(99999)
+          .setReconnectionDelay(1000)
+          .setReconnectionDelayMax(3000)
+          .setTimeout(10000)
           .setExtraHeaders(
             token != null ? {'Authorization': 'Bearer $token'} : {},
+          )
+          .setAuth(
+            token != null ? {'token': token} : {},
           )
           .build(),
     );
 
     socket.onConnect((_) async {
       print(
-        '=== Background WebSocket Connected. Waiting 3 seconds before initial payload... ===',
+        '=== Background WebSocket Connected Successfully! Waiting 3s before location check... ===',
       );
       await Future.delayed(const Duration(seconds: 3));
       await performLocationCheck();
+    });
+    socket.onReconnect((_) async {
+      print('=== Background WebSocket Reconnected! ===');
+      await performLocationCheck();
+    });
+    socket.onDisconnect((reason) {
+      print('=== Background WebSocket Disconnected: $reason ===');
     });
     socket.onConnectError((err) {
       print('=== Background WebSocket Connect Error: $err ===');
@@ -273,6 +366,11 @@ void onStart(ServiceInstance service) async {
   } catch (_) {}
 
   timer = Timer.periodic(const Duration(seconds: 3), (t) async {
+    if (socket != null && !socket.connected) {
+      try {
+        socket.connect();
+      } catch (_) {}
+    }
     await performLocationCheck();
   });
 }

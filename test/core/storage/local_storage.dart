@@ -57,6 +57,18 @@ class LocalStorage {
     return prefs.getString(_punchInTimeKey);
   }
 
+  static const String _unsyncedRecordsKey = 'unsynced_punch_records';
+
+  static Future<void> saveUnsyncedRecordsJsonList(List<String> jsonList) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_unsyncedRecordsKey, jsonList);
+  }
+
+  static Future<List<String>> getUnsyncedRecordsJsonList() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList(_unsyncedRecordsKey) ?? [];
+  }
+
   static Future<void> removeToken() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
@@ -64,9 +76,11 @@ class LocalStorage {
     await prefs.remove(_employeeKey);
     await prefs.remove(_punchStatusKey);
     await prefs.remove(_punchInTimeKey);
+    await prefs.remove(_unsyncedRecordsKey);
   }
   static Future<void> clear() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
   }
 }
+

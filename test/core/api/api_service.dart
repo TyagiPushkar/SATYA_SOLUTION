@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import './api_endpoints.dart';
 import './dio_client.dart';
 import '../exception/app_exception.dart';
 import '../network/network_checker.dart';
@@ -44,9 +45,10 @@ class ApiService {
       ),
     );
   }
-  Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) async {
+  Future<Response> get(String path,
+      {Map<String, dynamic>? queryParameters, Options? options}) async {
     try {
-      return await _dio.get(path, queryParameters: queryParameters);
+      return await _dio.get(path, queryParameters: queryParameters, options: options);
     } catch (e) {
       throw _handleException(e);
     }
@@ -81,7 +83,9 @@ class ApiService {
         case DioExceptionType.connectionTimeout:
         case DioExceptionType.sendTimeout:
         case DioExceptionType.receiveTimeout:
-          return TimeoutException();
+          return TimeoutException('Server connection timed out (${ApiEndpoints.socketUrl})');
+        case DioExceptionType.connectionError:
+          return NetworkException('Server is offline or unreachable (${ApiEndpoints.socketUrl})');
         case DioExceptionType.badResponse:
           if (e.response?.statusCode == 401) {
             return UnauthorizedException();
@@ -91,7 +95,11 @@ class ApiService {
           return AppException(
               e.response?.data['message'] ?? 'An error occurred');
         default:
-          return UnknownException();
+          final errDetail = e.error?.toString() ?? e.message ?? '';
+          if (errDetail.contains('Connection refused') || errDetail.contains('SocketException')) {
+            return NetworkException('Server is offline or unreachable (${ApiEndpoints.socketUrl})');
+          }
+          return UnknownException(errDetail.isNotEmpty ? errDetail : 'An error occurred');
       }
     }
     return UnknownException(e.toString());

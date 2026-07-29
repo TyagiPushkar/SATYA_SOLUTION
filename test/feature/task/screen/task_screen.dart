@@ -24,6 +24,146 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
   final TextEditingController _searchController = TextEditingController();
   final Set<String> _expandedTaskSlugs = {};
   final Set<String> _expandedCustomerIds = {};
+  String _selectedStatusFilter = 'All';
+
+  List<dynamic> _getFilteredTasks(List<dynamic> rawTasks) {
+    if (_selectedStatusFilter == 'All') return rawTasks;
+
+    return rawTasks.where((task) {
+      final status = _safeString(
+        task is Map ? task['status'] : '',
+        fallback: 'Pending',
+      ).toLowerCase();
+
+      if (_selectedStatusFilter == 'Pending') {
+        return status.contains('pending') || status.contains('open');
+      } else if (_selectedStatusFilter == 'In Progress') {
+        return status.contains('progress') || status.contains('inprogress');
+      } else if (_selectedStatusFilter == 'Completed') {
+        return status.contains('complete') ||
+            status.contains('closed') ||
+            status.contains('done');
+      }
+      return true;
+    }).toList();
+  }
+
+  Widget _buildStatusFilterTabs(List<dynamic> allTasks) {
+    final tabs = ['All', 'Pending', 'In Progress', 'Completed'];
+
+    int getCount(String statusFilter) {
+      if (statusFilter == 'All') return allTasks.length;
+      return allTasks.where((task) {
+        final status = _safeString(
+          task is Map ? task['status'] : '',
+          fallback: 'Pending',
+        ).toLowerCase();
+        if (statusFilter == 'Pending') {
+          return status.contains('pending') || status.contains('open');
+        } else if (statusFilter == 'In Progress') {
+          return status.contains('progress') || status.contains('inprogress');
+        } else if (statusFilter == 'Completed') {
+          return status.contains('complete') ||
+              status.contains('closed') ||
+              status.contains('done');
+        }
+        return false;
+      }).length;
+    }
+
+    return Container(
+      color: AppColors.primary,
+      width: double.infinity,
+      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: tabs.map((tab) {
+            final isSelected = _selectedStatusFilter == tab;
+            final count = getCount(tab);
+
+            Color activeBgColor = Colors.white;
+            Color activeTextColor = AppColors.primary;
+            if (tab == 'Pending' && isSelected) {
+              activeBgColor = const Color(0xFFFF9800);
+              activeTextColor = Colors.white;
+            } else if (tab == 'In Progress' && isSelected) {
+              activeBgColor = const Color(0xFF2196F3);
+              activeTextColor = Colors.white;
+            } else if (tab == 'Completed' && isSelected) {
+              activeBgColor = const Color(0xFF00BFA5);
+              activeTextColor = Colors.white;
+            }
+
+            return Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: InkWell(
+                onTap: () {
+                  setState(() {
+                    _selectedStatusFilter = tab;
+                  });
+                },
+                borderRadius: BorderRadius.circular(20),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? activeBgColor
+                        : Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(20),
+                    border: isSelected
+                        ? null
+                        : Border.all(
+                            color: Colors.white.withValues(alpha: 0.4),
+                            width: 1,
+                          ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AppText(
+                        tab,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.w600,
+                        fontSize: 13,
+                        color: isSelected ? activeTextColor : Colors.white,
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? (activeBgColor == Colors.white
+                                    ? AppColors.primary.withValues(alpha: 0.15)
+                                    : Colors.white.withValues(alpha: 0.25))
+                              : Colors.white.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: AppText(
+                          '$count',
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: isSelected ? activeTextColor : Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -141,6 +281,8 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
     final isCustomerMode = title == 'Customer Tasks';
     final isEmployeeMode = title == 'All Employees';
 
+    final filteredTasks = _getFilteredTasks(taskState.tasks);
+
     final isLoading = isEmployeeMode
         ? employeeState.isLoading
         : (isCustomerMode ? customerState.isLoading : taskState.isLoading);
@@ -151,7 +293,7 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
         ? employeeState.employees.length
         : (isCustomerMode
               ? customerState.customers.length
-              : taskState.tasks.length);
+              : filteredTasks.length);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -312,6 +454,8 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
               ),
             ),
           ),
+          if (!isEmployeeMode && !isCustomerMode)
+            _buildStatusFilterTabs(taskState.tasks),
           const AppSizeBox.h(16),
           Expanded(
             child: isLoading
@@ -399,7 +543,7 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
                                   customerState.customers[index],
                                 );
                               } else {
-                                return _buildTaskCard(taskState.tasks[index]);
+                                return _buildTaskCard(filteredTasks[index]);
                               }
                             },
                           ),
@@ -739,16 +883,22 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
     // Type
     String type = 'General';
     if (task['taskType'] is Map) {
-      type = _safeString((task['taskType'] as Map)['name'], fallback: 'General');
+      type = _safeString(
+        (task['taskType'] as Map)['name'],
+        fallback: 'General',
+      );
     } else if (task['taskType'] != null) {
       type = _safeString(task['taskType'], fallback: 'General');
     }
 
     // Follow Up
     String followUp = _safeString(task['time']);
-    if (task['additionalFields'] is List && (task['additionalFields'] as List).isNotEmpty) {
+    if (task['additionalFields'] is List &&
+        (task['additionalFields'] as List).isNotEmpty) {
       final list = task['additionalFields'] as List;
-      final notes = list.map((e) => e is Map ? "${e['name']}: ${e['value']}" : e.toString()).join(", ");
+      final notes = list
+          .map((e) => e is Map ? "${e['name']}: ${e['value']}" : e.toString())
+          .join(", ");
       if (followUp.isNotEmpty) {
         followUp += " ($notes)";
       } else {
@@ -760,7 +910,10 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
     // Created By
     String createdBy = 'NA';
     if (task['createdBy'] is Map) {
-      createdBy = _safeString((task['createdBy'] as Map)['name'], fallback: 'NA');
+      createdBy = _safeString(
+        (task['createdBy'] as Map)['name'],
+        fallback: 'NA',
+      );
     } else if (task['createdBy'] != null) {
       createdBy = _safeString(task['createdBy'], fallback: 'NA');
     }
@@ -833,9 +986,9 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
             bottom: 0,
             child: Container(
               width: 8,
-              decoration: BoxDecoration(
-                color: statusColor,
-                borderRadius: const BorderRadius.only(
+              decoration: const BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(12),
                   bottomLeft: Radius.circular(12),
                 ),
@@ -864,12 +1017,31 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Expanded(
-                          child: AppText(
-                            title,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                          child: GestureDetector(
+                            onTap: () {
+                              context.push('/task-details', extra: rawTask);
+                            },
+                            behavior: HitTestBehavior.opaque,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: AppText(
+                                    title,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: AppColors.primary,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const AppSizeBox.w(6),
+                                const BlinkingTouchIcon(
+                                  color: Color(0xFF00BFA5),
+                                  size: 20,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                         const AppSizeBox.w(8),
@@ -1138,6 +1310,57 @@ class _DynamicCreateEmployeeBottomSheetState
           }
           return null;
         },
+      ),
+    );
+  }
+}
+
+class BlinkingTouchIcon extends StatefulWidget {
+  final Color color;
+  final double size;
+
+  const BlinkingTouchIcon({
+    super.key,
+    this.color = const Color(0xFF00BFA5),
+    this.size = 20,
+  });
+
+  @override
+  State<BlinkingTouchIcon> createState() => _BlinkingTouchIconState();
+}
+
+class _BlinkingTouchIconState extends State<BlinkingTouchIcon>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _opacityAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 650),
+    )..repeat(reverse: true);
+    _opacityAnimation = Tween<double>(
+      begin: 0.25,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _opacityAnimation,
+      child: Icon(
+        Icons.touch_app_outlined,
+        size: widget.size,
+        color: widget.color,
       ),
     );
   }

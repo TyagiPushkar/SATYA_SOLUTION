@@ -7,8 +7,12 @@ import 'package:geolocator/geolocator.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../core/api/api_service.dart';
 import '../../../core/exception/app_exception.dart';
+import '../../../core/network/network_checker.dart';
 import '../../../core/storage/local_storage.dart';
+import '../model/unsynced_punch_record.dart';
 import '../service/background_location_service.dart';
+import '../service/offline_sync_service.dart';
+import 'sync_provider.dart';
 
 class PunchInState {
   final bool isPunchedIn;
@@ -164,10 +168,58 @@ class PunchInNotifier extends Notifier<PunchInState> {
       'device_info': deviceInfo,
     };
 
+    final hasInternet = await NetworkChecker.hasInternetAccess();
+
     if (!isNowPunchedIn) {
-      // PUNCH OUT: Guaranteed instant punch out
+      // PUNCH OUT:
       await LocalStorage.savePunchStatus(false);
       await BackgroundLocationService.stopLocationTracking();
+
+      if (!hasInternet) {
+        // Calculate stationary duration if available
+        int minutes = 0;
+        if (state.punchInTime != null) {
+          minutes = now.difference(state.punchInTime!).inSeconds ~/ 60;
+        }
+
+        // Save offline location update record for WebSocket sync
+        final locRecord = UnsyncedPunchRecord(
+          id: 'loc_out_${now.millisecondsSinceEpoch}',
+          type: 'locationUpdate',
+          timestamp: now.toIso8601String(),
+          latitude: lat,
+          longitude: lng,
+          remarks: 'Visited client office',
+          ipAddress: ipAddress,
+          deviceInfo: deviceInfo,
+          empId: empId,
+          timeInMinutes: minutes,
+        );
+        await OfflineSyncService.addPendingRecord(locRecord);
+
+        // Save offline punch out record
+        final offlineRecord = UnsyncedPunchRecord(
+          id: 'punch_out_${now.millisecondsSinceEpoch}',
+          type: 'clockOut',
+          timestamp: now.toIso8601String(),
+          latitude: lat,
+          longitude: lng,
+          remarks: 'Visited client office',
+          ipAddress: ipAddress,
+          deviceInfo: deviceInfo,
+          empId: empId,
+        );
+        await OfflineSyncService.addPendingRecord(offlineRecord);
+        ref.read(syncProvider.notifier).loadRecords();
+
+        state = state.copyWith(
+          isPunchedIn: false,
+          punchOutTime: now,
+          isLoading: false,
+          error: null,
+        );
+        return 'Punched Out Offline! Data saved locally & will auto-sync when internet connects.';
+      }
 
       try {
         final response = await apiService
@@ -178,7 +230,22 @@ class PunchInNotifier extends Notifier<PunchInState> {
         debugPrint('Status Code: ${response.statusCode}');
         debugPrint('Response Data: ${response.data}');
       } catch (e) {
-        debugPrint('=== CLOCK OUT API TIMEOUT/ERROR HANDLED ===: $e');
+        debugPrint(
+          '=== CLOCK OUT API TIMEOUT/ERROR HANDLED -> Saved Offline ===: $e',
+        );
+        final offlineRecord = UnsyncedPunchRecord(
+          id: 'punch_out_${now.millisecondsSinceEpoch}',
+          type: 'clockOut',
+          timestamp: now.toIso8601String(),
+          latitude: lat,
+          longitude: lng,
+          remarks: 'Visited client office',
+          ipAddress: ipAddress,
+          deviceInfo: deviceInfo,
+          empId: empId,
+        );
+        await OfflineSyncService.addPendingRecord(offlineRecord);
+        ref.read(syncProvider.notifier).loadRecords();
       }
 
       state = state.copyWith(
@@ -190,11 +257,56 @@ class PunchInNotifier extends Notifier<PunchInState> {
 
       return 'Successfully Punched Out!';
     } else {
-      // PUNCH IN: Validate with server
+      // PUNCH IN:
+      if (!hasInternet) {
+        // Save offline punch in record
+        await LocalStorage.savePunchStatus(true);
+        await LocalStorage.savePunchInTime(now.toIso8601String());
+        await BackgroundLocationService.startLocationTracking();
+
+        final offlineRecord = UnsyncedPunchRecord(
+          id: 'punch_in_${now.millisecondsSinceEpoch}',
+          type: 'clockIn',
+          timestamp: now.toIso8601String(),
+          latitude: lat,
+          longitude: lng,
+          remarks: 'Visited client office',
+          ipAddress: ipAddress,
+          deviceInfo: deviceInfo,
+          empId: empId,
+        );
+        await OfflineSyncService.addPendingRecord(offlineRecord);
+
+        // Save location update record for WebSocket sync
+        final locRecord = UnsyncedPunchRecord(
+          id: 'loc_in_${now.millisecondsSinceEpoch}',
+          type: 'locationUpdate',
+          timestamp: now.toIso8601String(),
+          latitude: lat,
+          longitude: lng,
+          remarks: 'Visited client office',
+          ipAddress: ipAddress,
+          deviceInfo: deviceInfo,
+          empId: empId,
+          timeInMinutes: 0,
+        );
+        await OfflineSyncService.addPendingRecord(locRecord);
+        ref.read(syncProvider.notifier).loadRecords();
+
+        state = state.copyWith(
+          isPunchedIn: true,
+          punchInTime: now,
+          isLoading: false,
+          error: null,
+        );
+
+        return 'Punched In Offline! Data saved locally & will auto-sync when internet connects.';
+      }
+
       try {
         final response = await apiService
             .post(ApiEndpoints.clockIn, data: body)
-            .timeout(const Duration(seconds: 12));
+            .timeout(const Duration(seconds: 8));
 
         debugPrint('=== CLOCK IN API RESPONSE ===');
         debugPrint('Status Code: ${response.statusCode}');
@@ -225,25 +337,41 @@ class PunchInNotifier extends Notifier<PunchInState> {
         return serverMsg;
       } catch (e) {
         String errorMsg = 'Unable to connect to server';
-        if (e is TimeoutException) {
-          errorMsg =
-              'Server connection timed out. Please verify server (${ApiEndpoints.socketUrl}) is online.';
+        if (e is TimeoutException ||
+            e.toString().toLowerCase().contains('connection timeout') ||
+            e.toString().toLowerCase().contains('socketexception') ||
+            e.toString().toLowerCase().contains('connection refused')) {
+          // Network connection error -> Fallback to Offline Punch!
+          await LocalStorage.savePunchStatus(true);
+          await LocalStorage.savePunchInTime(now.toIso8601String());
+          await BackgroundLocationService.startLocationTracking();
+
+          final offlineRecord = UnsyncedPunchRecord(
+            id: 'punch_in_${now.millisecondsSinceEpoch}',
+            type: 'clockIn',
+            timestamp: now.toIso8601String(),
+            latitude: lat,
+            longitude: lng,
+            remarks: 'Visited client office',
+            ipAddress: ipAddress,
+            deviceInfo: deviceInfo,
+            empId: empId,
+          );
+          await OfflineSyncService.addPendingRecord(offlineRecord);
+          ref.read(syncProvider.notifier).loadRecords();
+
+          state = state.copyWith(
+            isPunchedIn: true,
+            punchInTime: now,
+            isLoading: false,
+            error: null,
+          );
+
+          return 'Punched In Offline (Network Error)! Data saved locally & will auto-sync when internet connects.';
         } else if (e is AppException) {
           errorMsg = e.message;
         } else {
-          final errStr = e.toString().toLowerCase();
-          if (errStr.contains('connection timeout') ||
-              errStr.contains('connecttimeout') ||
-              errStr.contains('timed out')) {
-            errorMsg =
-                'Server connection timed out (${ApiEndpoints.socketUrl})';
-          } else if (errStr.contains('socketexception') ||
-              errStr.contains('connection refused')) {
-            errorMsg =
-                'Server is offline or unreachable (${ApiEndpoints.socketUrl})';
-          } else {
-            errorMsg = e.toString().replaceAll('Exception:', '').trim();
-          }
+          errorMsg = e.toString().replaceAll('Exception:', '').trim();
         }
 
         debugPrint('=== CLOCK IN API ERROR ===: $errorMsg');
