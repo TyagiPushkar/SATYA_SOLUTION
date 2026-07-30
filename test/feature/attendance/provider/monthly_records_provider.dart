@@ -106,9 +106,28 @@ class MonthlyRecordsState {
       String monthStrNum = month.toString().padLeft(2, '0');
       String dateStr = '$year-$monthStrNum-$dayStr';
 
-      var found = fetchedAttendances.where((item) => item['date'] == dateStr).toList();
+      var found = fetchedAttendances.where((item) {
+        if (item is! Map) return false;
+        final rawDate = item['date']?.toString() ?? '';
+        final rawClockIn = item['clock_in']?.toString() ?? '';
+
+        bool matches(String str) {
+          if (str.isEmpty) return false;
+          if (str.startsWith(dateStr)) return true;
+          final dt = DateTime.tryParse(str);
+          if (dt != null) {
+            final formatted =
+                "${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}";
+            return formatted == dateStr;
+          }
+          return false;
+        }
+
+        return matches(rawDate) || matches(rawClockIn);
+      }).toList();
+
       if (found.isNotEmpty) {
-        status = found.first['status'] as String;
+        status = (found.first['status'] ?? 'NJ').toString();
       }
 
       days.add({'day': i.toString(), 'isCurrentMonth': true, 'status': status});
@@ -237,10 +256,7 @@ class MonthlyRecordsNotifier extends Notifier<MonthlyRecordsState> {
 
     Future.microtask(() => _fetchAttendance());
 
-    return MonthlyRecordsState(
-      selectedMonth: initialMonth,
-      monthsList: months,
-    );
+    return MonthlyRecordsState(selectedMonth: initialMonth, monthsList: months);
   }
 
   static List<String> _generateMonths() {
@@ -283,16 +299,30 @@ class MonthlyRecordsNotifier extends Notifier<MonthlyRecordsState> {
     state = state.copyWith(isLoading: true);
     try {
       final api = ref.read(apiServiceProvider);
-      // Fetch attendance for all employees (or the current user).
-      // Based on the endpoint 'all-employee-attendance'
       final response = await api.get(ApiEndpoints.allEmployeeAttendance);
       if (response.statusCode == 200) {
-        final data = response.data['data']['attendances'] as List<dynamic>;
-        state = state.copyWith(fetchedAttendances: data, isLoading: false);
+        final resData = response.data;
+        List<dynamic> attendancesList = [];
+        if (resData is Map) {
+          if (resData['data'] != null &&
+              resData['data'] is Map &&
+              resData['data']['attendances'] is List) {
+            attendancesList = resData['data']['attendances'] as List<dynamic>;
+          } else if (resData['attendances'] is List) {
+            attendancesList = resData['attendances'] as List<dynamic>;
+          } else if (resData['data'] is List) {
+            attendancesList = resData['data'] as List<dynamic>;
+          }
+        }
+        state = state.copyWith(
+          fetchedAttendances: attendancesList,
+          isLoading: false,
+        );
       } else {
         state = state.copyWith(isLoading: false);
       }
     } catch (e) {
+      debugPrint('Error fetching attendance API: $e');
       state = state.copyWith(isLoading: false);
     }
   }
@@ -300,5 +330,5 @@ class MonthlyRecordsNotifier extends Notifier<MonthlyRecordsState> {
 
 final monthlyRecordsProvider =
     NotifierProvider<MonthlyRecordsNotifier, MonthlyRecordsState>(() {
-  return MonthlyRecordsNotifier();
-});
+      return MonthlyRecordsNotifier();
+    });

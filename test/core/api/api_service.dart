@@ -31,6 +31,13 @@ class ApiService {
           final token = await LocalStorage.getToken();
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
+            final refreshToken = await LocalStorage.getRefreshToken();
+            if (refreshToken != null && refreshToken.isNotEmpty) {
+              options.headers['Cookie'] =
+                  'accessToken=$token; refreshToken=$refreshToken';
+            } else {
+              options.headers['Cookie'] = 'accessToken=$token';
+            }
           }
           return handler.next(options);
         },

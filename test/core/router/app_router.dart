@@ -11,7 +11,9 @@ import '../../feature/attendance/screen/unsynced_records_screen.dart';
 import '../../feature/auth/screen/create_employee_screen.dart';
 import '../../feature/task/screen/task_screen.dart';
 import '../../feature/task/screen/task_details_screen.dart';
+import '../../feature/task/screen/complete_task_screen.dart';
 import '../../feature/attendance/screen/employee_live_tracking_screen.dart';
+import '../../feature/home/screen/my_team_screen.dart';
 
 class AppRouter {
   static final router = GoRouter(
@@ -49,9 +51,17 @@ class AppRouter {
         builder: (context, state) => TaskDetailsScreen(taskExtra: state.extra),
       ),
       GoRoute(
+        path: '/complete-task',
+        builder: (context, state) => CompleteTaskScreen(taskExtra: state.extra),
+      ),
+      GoRoute(
         path: '/employee-live-tracking',
         builder: (context, state) =>
             EmployeeLiveTrackingScreen(employeeExtra: state.extra),
+      ),
+      GoRoute(
+        path: '/my-team',
+        builder: (context, state) => const MyTeamScreen(),
       ),
     ],
   );

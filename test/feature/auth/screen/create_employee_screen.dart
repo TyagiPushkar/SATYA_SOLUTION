@@ -1140,7 +1140,7 @@ class _CreateEmployeeScreenState extends ConsumerState<CreateEmployeeScreen> {
   }
 }
 
-class MultiSelectFormField extends StatefulWidget {
+class MultiSelectFormField extends ConsumerStatefulWidget {
   final EmployeeFormField field;
   final List<String> selectedValues;
   final ValueChanged<List<String>> onChanged;
@@ -1153,10 +1153,10 @@ class MultiSelectFormField extends StatefulWidget {
   });
 
   @override
-  State<MultiSelectFormField> createState() => _MultiSelectFormFieldState();
+  ConsumerState<MultiSelectFormField> createState() => _MultiSelectFormFieldState();
 }
 
-class _MultiSelectFormFieldState extends State<MultiSelectFormField> {
+class _MultiSelectFormFieldState extends ConsumerState<MultiSelectFormField> {
   void _openMultiSelectSheet() {
     List<EmployeeFormOption> options = widget.field.options;
     if (options.isEmpty) {
@@ -1440,7 +1440,7 @@ class _MultiSelectFormFieldState extends State<MultiSelectFormField> {
   }
 }
 
-class ColorPickerFormField extends StatefulWidget {
+class ColorPickerFormField extends ConsumerStatefulWidget {
   final EmployeeFormField field;
   final String selectedColorHex;
   final ValueChanged<String> onChanged;
@@ -1453,10 +1453,10 @@ class ColorPickerFormField extends StatefulWidget {
   });
 
   @override
-  State<ColorPickerFormField> createState() => _ColorPickerFormFieldState();
+  ConsumerState<ColorPickerFormField> createState() => _ColorPickerFormFieldState();
 }
 
-class _ColorPickerFormFieldState extends State<ColorPickerFormField> {
+class _ColorPickerFormFieldState extends ConsumerState<ColorPickerFormField> {
   bool _isExpanded = false;
   late HSVColor _currentHsv;
   late TextEditingController _hexController;
@@ -1901,15 +1901,15 @@ class _ColorPickerFormFieldState extends State<ColorPickerFormField> {
   }
 }
 
-class CustomTimePickerDialog extends StatefulWidget {
+class CustomTimePickerDialog extends ConsumerStatefulWidget {
   final String? initialTime;
   const CustomTimePickerDialog({super.key, this.initialTime});
 
   @override
-  State<CustomTimePickerDialog> createState() => _CustomTimePickerDialogState();
+  ConsumerState<CustomTimePickerDialog> createState() => _CustomTimePickerDialogState();
 }
 
-class _CustomTimePickerDialogState extends State<CustomTimePickerDialog> {
+class _CustomTimePickerDialogState extends ConsumerState<CustomTimePickerDialog> {
   late int _selectedHour;
   late int _selectedMinute;
   late String _selectedPeriod;

@@ -18,7 +18,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
   @override
   void dispose() {
     _emailController.dispose();
@@ -49,6 +48,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
     });
     final loginState = ref.watch(loginProvider);
+    final obscurePassword = ref.watch(loginPasswordVisibilityProvider);
     final size = MediaQuery.of(context).size;
     return Scaffold(
       backgroundColor: AppColors.loginBackgroundNew,
@@ -120,17 +120,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               hint: 'Password',
                               fillColor: AppColors.white,
                               borderColor: AppColors.primary,
-                              obscureText: _obscurePassword,
+                              obscureText: obscurePassword,
                               validator: Validators.password,
                               suffixIcon: IconButton(
                                 icon: Icon(
-                                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                  obscurePassword ? Icons.visibility_off : Icons.visibility,
                                   color: AppColors.grey,
                                 ),
                                 onPressed: () {
-                                  setState(() {
-                                    _obscurePassword = !_obscurePassword;
-                                  });
+                                  ref.read(loginPasswordVisibilityProvider.notifier).state = !obscurePassword;
                                 },
                               ),
                             ),

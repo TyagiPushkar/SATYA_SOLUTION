@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import '../../../core/api/api_service.dart';
 import '../../../core/storage/local_storage.dart';
 import '../data/auth_repository.dart';
@@ -25,6 +26,8 @@ final currentUserProvider = FutureProvider<EmployeeModel?>((ref) async {
   }
   return null;
 });
+
+final loginPasswordVisibilityProvider = StateProvider.autoDispose<bool>((ref) => true);
 
 final loginProvider = NotifierProvider<LoginNotifier, AsyncValue<void>>(() {
   return LoginNotifier();

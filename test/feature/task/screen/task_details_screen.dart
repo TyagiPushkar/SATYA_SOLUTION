@@ -132,31 +132,70 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Heading Section with Blue Accent Indicator
+                  // Heading Section with Blue Accent Indicator & Start Task Button
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        width: 4,
-                        height: 22,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0066D4),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
+                      Row(
+                        children: [
+                          Container(
+                            width: 4,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0066D4),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Task Details',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2B2B2B),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Task Details',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF2B2B2B),
+                      if (status.toLowerCase() == 'pending')
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            context.push(
+                              '/complete-task',
+                              extra: widget.taskExtra,
+                            );
+                          },
+                          icon: const Icon(
+                            Icons.add,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                          label: const Text(
+                            'Start Task',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0066D4),
+                            foregroundColor: Colors.white,
+                            elevation: 1,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
                         ),
-                      ),
                     ],
                   ),
                   const SizedBox(height: 14),
-
-                  // Card Container with Flush Top-Right Red/Green Corner Badge
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
@@ -241,7 +280,6 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Customer Details Section Header
                   GestureDetector(
                     onTap: () {
                       setState(() {
@@ -282,7 +320,6 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // Card Container for Customer Details
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
@@ -314,54 +351,74 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                             children: [
                               _buildDetailRow(
                                 'Mobile',
-                                _safeStr(customer['phone'],
-                                    fallback: '9876543210'),
+                                _safeStr(
+                                  customer['phone'],
+                                  fallback: '9876543210',
+                                ),
                               ),
                               _buildDetailRow(
                                 'State Name',
-                                _safeStr(customer['state'],
-                                    fallback: 'Uttar Pradesh'),
+                                _safeStr(
+                                  customer['state'],
+                                  fallback: 'Uttar Pradesh',
+                                ),
                               ),
                               _buildDetailRow(
                                 'Sub-State Name',
-                                _safeStr(customer['sub_state'],
-                                    fallback: 'West UP'),
+                                _safeStr(
+                                  customer['sub_state'],
+                                  fallback: 'West UP',
+                                ),
                               ),
                               if (_isCustomerDetailsExpanded) ...[
                                 _buildDetailRow(
                                   'Branch Code',
-                                  _safeStr(customer['branch_code'],
-                                      fallback: 'BR001'),
+                                  _safeStr(
+                                    customer['branch_code'],
+                                    fallback: 'BR001',
+                                  ),
                                 ),
                                 _buildDetailRow(
                                   'Branch',
-                                  _safeStr(customer['branch'],
-                                      fallback: 'Main Branch'),
+                                  _safeStr(
+                                    customer['branch'],
+                                    fallback: 'Main Branch',
+                                  ),
                                 ),
                                 _buildDetailRow(
                                   'Center Name',
-                                  _safeStr(customer['center'],
-                                      fallback: 'Center A'),
+                                  _safeStr(
+                                    customer['center'],
+                                    fallback: 'Center A',
+                                  ),
                                 ),
                                 _buildDetailRow(
                                   'Center Code',
-                                  _safeStr(customer['center_code'],
-                                      fallback: 'C001'),
+                                  _safeStr(
+                                    customer['center_code'],
+                                    fallback: 'C001',
+                                  ),
                                 ),
                                 _buildDetailRow(
                                   'Loan Type',
-                                  _safeStr(customer['loanType'],
-                                      fallback: 'Personal Loan'),
+                                  _safeStr(
+                                    customer['loanType'],
+                                    fallback: 'Personal Loan',
+                                  ),
                                 ),
                                 _buildDetailRow(
                                   'Loan NO.',
-                                  _safeStr(customer['loanNo'],
-                                      fallback: 'LN12345678'),
+                                  _safeStr(
+                                    customer['loanNo'],
+                                    fallback: 'LN12345678',
+                                  ),
                                 ),
                                 _buildDetailRow(
                                   'Old Loan No. With Loan Series',
-                                  _safeStr(customer['oldLoanNo'],
-                                      fallback: 'OLD-LN-001'),
+                                  _safeStr(
+                                    customer['oldLoanNo'],
+                                    fallback: 'OLD-LN-001',
+                                  ),
                                 ),
                                 _buildDetailRow(
                                   'Cycle',
@@ -409,7 +466,8 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                                 ),
                                 _buildDetailRow(
                                   'TotalPrinColl',
-                                  customer['total_principal_collectible'] != null
+                                  customer['total_principal_collectible'] !=
+                                          null
                                       ? '₹ ${customer['total_principal_collectible']}'
                                       : '₹ 15,000',
                                 ),
@@ -427,8 +485,10 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                                 ),
                                 _buildDetailRow(
                                   'NoOfInstallment',
-                                  _safeStr(customer['noOfInstallment'],
-                                      fallback: '24'),
+                                  _safeStr(
+                                    customer['noOfInstallment'],
+                                    fallback: '24',
+                                  ),
                                 ),
                                 _buildDetailRow(
                                   'DPD',
@@ -436,18 +496,24 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                                 ),
                                 _buildDetailRow(
                                   'PaidInstNo',
-                                  _safeStr(customer['paidInstNo'],
-                                      fallback: '8'),
+                                  _safeStr(
+                                    customer['paidInstNo'],
+                                    fallback: '8',
+                                  ),
                                 ),
                                 _buildDetailRow(
                                   'LoanStatus',
-                                  _safeStr(customer['loanStatus'],
-                                      fallback: 'Active'),
+                                  _safeStr(
+                                    customer['loanStatus'],
+                                    fallback: 'Active',
+                                  ),
                                 ),
                                 _buildDetailRow(
                                   'SpouseName',
-                                  _safeStr(customer['spouseName'],
-                                      fallback: 'Ramesh Sharma'),
+                                  _safeStr(
+                                    customer['spouseName'],
+                                    fallback: 'Ramesh Sharma',
+                                  ),
                                 ),
                                 _buildDetailRow(
                                   'InstallmentAmount',
@@ -457,13 +523,17 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                                 ),
                                 _buildDetailRow(
                                   'Pincode',
-                                  _safeStr(customer['pincode'],
-                                      fallback: '201301'),
+                                  _safeStr(
+                                    customer['pincode'],
+                                    fallback: '201301',
+                                  ),
                                 ),
                                 _buildDetailRow(
                                   'Address',
-                                  _safeStr(customer['location'],
-                                      fallback: 'H.No 123, Sector 15, Noida'),
+                                  _safeStr(
+                                    customer['location'],
+                                    fallback: 'H.No 123, Sector 15, Noida',
+                                  ),
                                 ),
                               ],
                             ],
@@ -498,8 +568,6 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                     ),
                   ],
                   const SizedBox(height: 20),
-
-                  // Heading Section with Blue Accent Indicator - NPA Collection
                   Row(
                     children: [
                       Container(
@@ -522,11 +590,9 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                     ],
                   ),
                   const SizedBox(height: 14),
-
                   if (status.toLowerCase() == 'completed') ...[
                     _buildNpaCompletedCard(taskData: taskData),
                   ] else ...[
-                    // Payment Type Section (for pending status)
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -565,8 +631,10 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                                 vertical: 12,
                               ),
                               prefixIcon: Padding(
-                                padding:
-                                    const EdgeInsets.only(left: 12, right: 6),
+                                padding: const EdgeInsets.only(
+                                  left: 12,
+                                  right: 6,
+                                ),
                                 child: Text(
                                   '₹',
                                   style: TextStyle(
@@ -592,18 +660,31 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                     ),
                   ],
                   const SizedBox(height: 20),
-
-                  // Priority, Creator, Assign to, Timeline & Date Range Card
                   _buildTaskMetaDataCard(
-                    priority: _safeStr(taskData['priority'], fallback: 'Medium'),
-                    creatorName: _safeStr(createdBy['name'], fallback: 'MINA KUMARI'),
-                    assigneeName: _safeStr(assignee['name'], fallback: 'MINA KUMARI'),
-                    startDate: _formatDate(taskData['startDateTime'], '2026-08-31 14:56'),
-                    endDate: _formatDate(taskData['endDateTime'], '2026-09-01 14:56'),
+                    priority: _safeStr(
+                      taskData['priority'],
+                      fallback: 'Medium',
+                    ),
+                    creatorName: _safeStr(
+                      createdBy['name'],
+                      fallback: 'MINA KUMARI',
+                    ),
+                    assigneeName: _safeStr(
+                      assignee['name'],
+                      fallback: 'MINA KUMARI',
+                    ),
+                    startDate: _formatDate(
+                      taskData['startDateTime'],
+                      '2026-08-31 14:56',
+                    ),
+                    endDate: _formatDate(
+                      taskData['endDateTime'],
+                      '2026-09-01 14:56',
+                    ),
+                    createdBy: createdBy,
+                    assignee: assignee,
                   ),
                   const SizedBox(height: 20),
-
-                  // Customer & Follow Up Tabs Card
                   _buildCustomerFollowUpTabsCard(customer: customer),
                 ],
               ),
@@ -793,16 +874,18 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildDetailRow(
-                  "Client’s House Image.",
-                  _safeStr(taskData['houseImage'],
-                      fallback: "house_photo.jpg")),
+                "Client’s House Image.",
+                _safeStr(taskData['houseImage'], fallback: "house_photo.jpg"),
+              ),
               _buildDetailRow(
-                  "Client Relation 1*",
-                  _safeStr(taskData['relation'], fallback: "Father")),
+                "Client Relation 1*",
+                _safeStr(taskData['relation'], fallback: "Father"),
+              ),
               _buildDetailRow("Client Relation 2", "Mother"),
               _buildDetailRow(
-                  "Client Mobile No. 1*",
-                  _safeStr(taskData['clientPhone'], fallback: "9876543210")),
+                "Client Mobile No. 1*",
+                _safeStr(taskData['clientPhone'], fallback: "9876543210"),
+              ),
               _buildDetailRow("Client Mobile No. 2", "9123456789"),
               const SizedBox(height: 10),
               const Divider(color: Color(0xFFEEEEEE), height: 1),
@@ -817,24 +900,34 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
               ),
               const SizedBox(height: 6),
               _buildDetailRow(
-                  "Collection Amount",
-                  taskData['paymentAmount'] != null
-                      ? "₹ ${taskData['paymentAmount']}"
-                      : "₹ 5,000"),
+                "Collection Amount",
+                taskData['paymentAmount'] != null
+                    ? "₹ ${taskData['paymentAmount']}"
+                    : "₹ 5,000",
+              ),
               _buildDetailRow(
-                  "Collect Payment*",
-                  _safeStr(taskData['collectPayment'], fallback: "Full")),
-              _buildDetailRow("Reason*",
-                  _safeStr(taskData['reason'], fallback: "Regular Collection")),
+                "Collect Payment*",
+                _safeStr(taskData['collectPayment'], fallback: "Full"),
+              ),
               _buildDetailRow(
-                  "Client Segment*",
-                  _safeStr(taskData['clientSegment'], fallback: "Standard")),
-              _buildDetailRow("PTP Date*",
-                  _safeStr(taskData['ptpdate'], fallback: "2026-07-28")),
+                "Reason*",
+                _safeStr(taskData['reason'], fallback: "Regular Collection"),
+              ),
               _buildDetailRow(
-                  "Geo*",
-                  _safeStr(taskData['location'],
-                      fallback: "28.6139° N, 77.2090° E")),
+                "Client Segment*",
+                _safeStr(taskData['clientSegment'], fallback: "Standard"),
+              ),
+              _buildDetailRow(
+                "PTP Date*",
+                _safeStr(taskData['ptpdate'], fallback: "2026-07-28"),
+              ),
+              _buildDetailRow(
+                "Geo*",
+                _safeStr(
+                  taskData['location'],
+                  fallback: "28.6139° N, 77.2090° E",
+                ),
+              ),
             ],
           ),
         ),
@@ -848,6 +941,8 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
     required String assigneeName,
     required String startDate,
     required String endDate,
+    Map<String, dynamic>? createdBy,
+    Map<String, dynamic>? assignee,
   }) {
     final formattedPriority = priority.isNotEmpty
         ? '${priority[0].toUpperCase()}${priority.substring(1)}'
@@ -891,8 +986,8 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                       color: formattedPriority.toLowerCase() == 'high'
                           ? Colors.red
                           : (formattedPriority.toLowerCase() == 'low'
-                              ? Colors.grey
-                              : const Color(0xFF4CAF50)),
+                                ? Colors.grey
+                                : const Color(0xFF4CAF50)),
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -908,10 +1003,9 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                 ],
               ),
               const SizedBox(height: 8),
-
-              // Creator Row
               InkWell(
-                onTap: () => context.push('/employee-live-tracking'),
+                onTap: () =>
+                    context.push('/employee-live-tracking', extra: createdBy),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -941,10 +1035,9 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-
-              // Assign to Row
               InkWell(
-                onTap: () => context.push('/employee-live-tracking'),
+                onTap: () =>
+                    context.push('/employee-live-tracking', extra: assignee),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -976,8 +1069,6 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
               const SizedBox(height: 12),
               Divider(color: Colors.grey.shade200, height: 1),
               const SizedBox(height: 14),
-
-              // Timeline Section
               const Text(
                 'Timeline',
                 style: TextStyle(
@@ -1068,7 +1159,6 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Date Range Section
               const Text(
                 'Date Range',
                 style: TextStyle(
@@ -1156,8 +1246,9 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
     );
   }
 
-  Widget _buildCustomerFollowUpTabsCard(
-      {required Map<String, dynamic> customer}) {
+  Widget _buildCustomerFollowUpTabsCard({
+    required Map<String, dynamic> customer,
+  }) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -1179,10 +1270,14 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
           children: [
             // Title Header
             const Padding(
-              padding:
-                  EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 12),
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: 12,
+              ),
               child: Text(
-                'Task\\',
+                'Task',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -1289,16 +1384,21 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
       customer['district'] ?? customer['location'],
       fallback: 'MUZAFFARPUR',
     ).toUpperCase();
-    final totalIntColl =
-        _safeStr(customer['total_interest_collectible'], fallback: '0');
+    final totalIntColl = _safeStr(
+      customer['total_interest_collectible'],
+      fallback: '0',
+    );
     final loanAmount = _safeStr(customer['loanAmount'], fallback: '7500');
     final preClosureAmt = _safeStr(
-        customer['preClosureAmt'] ?? customer['totalDueAmount'],
-        fallback: '9679');
+      customer['preClosureAmt'] ?? customer['totalDueAmount'],
+      fallback: '9679',
+    );
     final centerCode = _safeStr(customer['center_code'], fallback: '35002235');
     final par = customer['par'] != null ? 'PAR ${customer['par']}' : 'PAR 366';
-    final noOfInstallment =
-        _safeStr(customer['noOfInstallment'], fallback: '19');
+    final noOfInstallment = _safeStr(
+      customer['noOfInstallment'],
+      fallback: '19',
+    );
     final osPrin = _safeStr(customer['os_principal'], fallback: '7500');
 
     return Column(
@@ -1330,11 +1430,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
       width: double.infinity,
       child: Column(
         children: [
-          Icon(
-            Icons.history_outlined,
-            size: 40,
-            color: Colors.grey.shade400,
-          ),
+          Icon(Icons.history_outlined, size: 40, color: Colors.grey.shade400),
           const SizedBox(height: 8),
           Text(
             'No Follow Up Details Available',

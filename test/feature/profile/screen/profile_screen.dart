@@ -2,176 +2,318 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_sizebox.dart';
 import '../../../core/widgets/app_text.dart';
 import '../../auth/provider/auth_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
+
+  String _formatDate(String? rawDate) {
+    if (rawDate == null || rawDate.isEmpty) return 'N/A';
+    try {
+      final dt = DateTime.parse(rawDate).toLocal();
+      final months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+      return '${dt.day.toString().padLeft(2, '0')} ${months[dt.month - 1]} ${dt.year}';
+    } catch (_) {
+      return rawDate;
+    }
+  }
+
+  String _capitalize(String? text) {
+    if (text == null || text.isEmpty) return 'N/A';
+    return text[0].toUpperCase() + text.substring(1).toLowerCase();
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final userAsync = ref.watch(currentUserProvider);
+    final user = userAsync.asData?.value;
+
+    final userName = (user?.name != null && user!.name!.isNotEmpty)
+        ? user.name!
+        : 'N/A';
+    final userDesignation =
+        (user?.designations != null && user!.designations!.isNotEmpty)
+            ? user.designations!
+            : 'N/A';
+    final userDepartment =
+        (user?.department != null && user!.department!.isNotEmpty)
+            ? user.department!
+            : 'N/A';
+    final userGender = _capitalize(user?.gender);
+    final userEmail = (user?.email != null && user!.email!.isNotEmpty)
+        ? user.email!
+        : 'N/A';
+    final userMobile = (user?.mobile != null && user!.mobile!.isNotEmpty)
+        ? user.mobile!
+        : 'N/A';
+    final userWorkShift =
+        (user?.workShift != null && user!.workShift!.isNotEmpty)
+            ? user.workShift!
+            : 'N/A';
+    final userAddress = (user?.address != null && user!.address!.isNotEmpty)
+        ? user.address!
+        : 'N/A';
+    final userDoj = _formatDate(user?.dateOfJoining);
+
+    const purpleColor = Color(0xFF7C3AED);
+
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Stack(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Top Header Stack with curved bottom
+            Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.bottomCenter,
               children: [
-                Container(
-                  height: 300,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        AppColors.gradientPurple,
-                        AppColors.gradientPink,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.only(
-                      bottomLeft: Radius.circular(30),
-                      bottomRight: Radius.circular(30),
+                // Header Gradient Container
+                ClipPath(
+                  clipper: HeaderArcClipper(),
+                  child: Container(
+                    height: 220,
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [AppColors.primary, Color(0xFF6D28D9)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                     ),
                   ),
                 ),
-                Column(
-                  children: [
-                    AppSizeBox.h(120),
-                    Stack(
-                      clipBehavior: Clip.none,
-                      alignment: Alignment.topCenter,
-                      children: [
-                        Container(
-                          margin: EdgeInsets.symmetric(horizontal: 24),
-                          padding: EdgeInsets.only(top: 60, bottom: 20),
-                          decoration: BoxDecoration(
-                            color: AppColors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.grey.withValues(alpha: 0.1),
-                                blurRadius: 20,
-                                offset: Offset(0, 10),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  AppText(
-                                    'Janet Walker',
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  AppSizeBox.w(4),
-                                  AppText(
-                                    '( 24 Y )',
-                                    fontSize: 12,
-                                    color: AppColors.grey.withValues(
-                                      alpha: 0.8,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              AppSizeBox.h(8),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.account_balance,
-                                    size: 14,
-                                    color: AppColors.grey.withValues(
-                                      alpha: 0.8,
-                                    ),
-                                  ),
-                                  AppSizeBox.w(4),
-                                  AppText(
-                                    'Stanford University',
-                                    fontSize: 14,
-                                    color: AppColors.grey.withValues(
-                                      alpha: 0.8,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              AppSizeBox.h(24),
-                              Divider(
-                                color: AppColors.grey.withValues(alpha: 0.2),
-                              ),
-                              AppSizeBox.h(16),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  _buildStatItem(Icons.access_time, '5 Min'),
-                                  _buildStatItem(
-                                    Icons.chat_bubble_outline,
-                                    'Message',
-                                  ),
-                                  _buildStatItem(
-                                    Icons.location_on_outlined,
-                                    'Location',
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        Positioned(
-                          top: -45,
-                          child: Container(
-                            padding: EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: AppColors.white,
-                              shape: BoxShape.circle,
-                            ),
-                            child: CircleAvatar(
-                              radius: 45,
-                              backgroundImage: NetworkImage(
-                                'https://i.pravatar.cc/150?img=5',
-                              ),
-                            ),
-                          ),
+
+                // Overlapping Avatar
+                Positioned(
+                  bottom: -45,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 10,
+                          offset: Offset(0, 4),
                         ),
                       ],
                     ),
-                    Padding(
-                      padding: EdgeInsets.all(24.0),
-                      child: AppText(
-                        "I'm a cool girl and I like to study science. lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do",
-                        fontSize: 14,
-                        color: AppColors.grey.withValues(alpha: 0.9),
-                        textAlign: TextAlign.center,
-                        maxLines: 3,
-                      ),
+                    child: CircleAvatar(
+                      radius: 48,
+                      backgroundColor: Colors.grey.shade100,
+                      backgroundImage:
+                          (user?.image != null && user!.image!.isNotEmpty)
+                              ? NetworkImage(user.image!)
+                              : null,
+                      child: (user?.image == null || user!.image!.isEmpty)
+                          ? ShaderMask(
+                              shaderCallback: (bounds) => const LinearGradient(
+                                colors: [Color(0xFF7C3AED), Color(0xFF9333EA)],
+                              ).createShader(bounds),
+                              child: const Icon(
+                                Icons.person,
+                                size: 56,
+                                color: Colors.white,
+                              ),
+                            )
+                          : null,
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
-          ),
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24.0),
-                  child: AppButton(
-                    text: 'Logout',
-                    color: AppColors.primary,
-                    onTap: () async {
-                      await ref.read(loginProvider.notifier).logout();
-                      if (context.mounted) {
-                        context.go('/login');
-                      }
-                    },
+
+            const AppSizeBox.h(55),
+
+            // User Name & Designation Header text
+            AppText(
+              userName,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF1E293B),
+            ),
+            if (userDesignation != 'N/A') ...[
+              const AppSizeBox.h(4),
+              AppText(
+                userDesignation,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey.shade600,
+              ),
+            ],
+
+            const AppSizeBox.h(24),
+
+            // Profile Details Container
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x0F000000),
+                      blurRadius: 10,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    _buildProfileRow(
+                      icon: Icons.person_outline,
+                      label: 'Full Name',
+                      value: userName,
+                      iconColor: purpleColor,
+                    ),
+                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                    _buildProfileRow(
+                      icon: Icons.badge_outlined,
+                      label: 'Designation',
+                      value: userDesignation,
+                      iconColor: purpleColor,
+                    ),
+                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                    _buildProfileRow(
+                      icon: Icons.business_outlined,
+                      label: 'Department',
+                      value: userDepartment,
+                      iconColor: purpleColor,
+                    ),
+                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                    _buildProfileRow(
+                      icon: Icons.wc_outlined,
+                      label: 'Gender',
+                      value: userGender,
+                      iconColor: purpleColor,
+                    ),
+                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                    _buildProfileRow(
+                      icon: Icons.email_outlined,
+                      label: 'Email Address',
+                      value: userEmail,
+                      iconColor: purpleColor,
+                    ),
+                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                    _buildProfileRow(
+                      icon: Icons.phone_android_outlined,
+                      label: 'Mobile Number',
+                      value: userMobile,
+                      iconColor: purpleColor,
+                    ),
+                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                    _buildProfileRow(
+                      icon: Icons.access_time_outlined,
+                      label: 'Work Shift',
+                      value: userWorkShift,
+                      iconColor: purpleColor,
+                    ),
+                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                    _buildProfileRow(
+                      icon: Icons.calendar_today_outlined,
+                      label: 'Date of Joining',
+                      value: userDoj,
+                      iconColor: purpleColor,
+                    ),
+                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                    _buildProfileRow(
+                      icon: Icons.location_on_outlined,
+                      label: 'Address',
+                      value: userAddress,
+                      iconColor: purpleColor,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const AppSizeBox.h(30),
+
+            // Logout Button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40.0),
+              child: Container(
+                width: double.infinity,
+                height: 50,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(25),
+                  color: AppColors.primary,
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x407C3AED),
+                      blurRadius: 12,
+                      offset: Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(25),
+                    onTap: () => _showLogoutDialog(context, ref),
+                    child: const Center(
+                      child: AppText(
+                        'Logout',
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
-                AppSizeBox.h(32),
+              ),
+            ),
+
+            const AppSizeBox.h(40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color iconColor,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: iconColor, size: 20),
+          ),
+          const AppSizeBox.w(16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AppText(
+                  label,
+                  fontSize: 12,
+                  color: Colors.grey.shade500,
+                  fontWeight: FontWeight.w400,
+                ),
+                const AppSizeBox.h(2),
+                AppText(
+                  value,
+                  fontSize: 14,
+                  color: const Color(0xFF1E293B),
+                  fontWeight: FontWeight.w500,
+                ),
               ],
             ),
           ),
@@ -180,18 +322,55 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatItem(IconData icon, String label) {
-    return Column(
-      children: [
-        Icon(icon, color: AppColors.grey.withValues(alpha: 0.7), size: 24),
-        AppSizeBox.h(8),
-        AppText(
-          label,
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-          color: AppColors.black.withValues(alpha: 0.7),
-        ),
-      ],
+  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const AppText('Logout', fontWeight: FontWeight.bold),
+        content: const AppText('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const AppText('Cancel', color: Colors.grey),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref.read(loginProvider.notifier).logout();
+              if (context.mounted) {
+                context.go('/login');
+              }
+            },
+            child: const AppText('Logout', color: AppColors.primary),
+          ),
+        ],
+      ),
     );
   }
+}
+
+// Custom Clipper for the concave arch bottom header
+class HeaderArcClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.lineTo(0, size.height - 50);
+
+    final controlPoint = Offset(size.width / 2, size.height + 20);
+    final endPoint = Offset(size.width, size.height - 50);
+
+    path.quadraticBezierTo(
+      controlPoint.dx,
+      controlPoint.dy,
+      endPoint.dx,
+      endPoint.dy,
+    );
+
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }

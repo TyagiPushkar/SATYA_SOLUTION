@@ -101,70 +101,6 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
     }
   }
 
-  Map<String, List<CustomerFormField>> _groupFields(
-    List<CustomerFormField> fields,
-  ) {
-    final Map<String, List<CustomerFormField>> grouped = {
-      'Basic Information': [],
-      'Location Details': [],
-      'Branch & Center Details': [],
-      'Loan & Financial Details': [],
-      'Other Details': [],
-    };
-
-    final Map<String, String> fieldToSection = {
-      'name': 'Basic Information',
-      'phone': 'Basic Information',
-      'email': 'Basic Information',
-      'image': 'Basic Information',
-
-      'location': 'Location Details',
-      'district': 'Location Details',
-      'state': 'Location Details',
-      'sub_state': 'Location Details',
-      'pincode': 'Location Details',
-
-      'branch_code': 'Branch & Center Details',
-      'branch': 'Branch & Center Details',
-      'center': 'Branch & Center Details',
-      'center_code': 'Branch & Center Details',
-
-      'loanType': 'Loan & Financial Details',
-      'loanNo': 'Loan & Financial Details',
-      'oldLoanNo': 'Loan & Financial Details',
-      'oldCustomerNo': 'Loan & Financial Details',
-      'cycle': 'Loan & Financial Details',
-      'loanDisbDate': 'Loan & Financial Details',
-      'loanAmount': 'Loan & Financial Details',
-      'os_principal': 'Loan & Financial Details',
-      'os_interest': 'Loan & Financial Details',
-      'par': 'Loan & Financial Details',
-      'od_principal': 'Loan & Financial Details',
-      'od_interest': 'Loan & Financial Details',
-      'totalDueAmount': 'Loan & Financial Details',
-      'total_principal_collectible': 'Loan & Financial Details',
-      'total_interest_collectible': 'Loan & Financial Details',
-      'irrRate': 'Loan & Financial Details',
-      'noOfInstallment': 'Loan & Financial Details',
-      'lastDueDate': 'Loan & Financial Details',
-      'lastPaidTrxDate': 'Loan & Financial Details',
-      'dpd': 'Loan & Financial Details',
-      'paidInstNo': 'Loan & Financial Details',
-      'loanStatus': 'Loan & Financial Details',
-      'installmentAmount': 'Loan & Financial Details',
-      'maturityDate': 'Loan & Financial Details',
-      'preClosureAmt': 'Loan & Financial Details',
-      'closedDate': 'Loan & Financial Details',
-    };
-
-    for (final field in fields) {
-      final section = fieldToSection[field.name] ?? 'Other Details';
-      grouped[section]!.add(field);
-    }
-
-    return grouped;
-  }
-
   @override
   Widget build(BuildContext context) {
     ref.listen<AsyncValue<Map<String, String>?>>(customerProvider, (
@@ -199,10 +135,9 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
       backgroundColor: AppColors.background,
       appBar: const CustomAppBar(title: 'Add New Customer'),
       body: ref
-          .watch(customerFormFieldsProvider)
+          .watch(groupedCustomerFormFieldsProvider)
           .when(
-            data: (fields) {
-              final grouped = _groupFields(fields);
+            data: (grouped) {
               return Column(
                 children: [
                   Expanded(

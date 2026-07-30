@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -38,12 +39,24 @@ class _EmployeeLiveTrackingScreenState
   String _selectedLeaveOption = 'Leave';
   bool _isVerticalPanelOpen = true;
   bool _isPlayingbackPlaying = false;
-  double _playbackProgress = 0.3;
+  double _playbackProgress = 0.0;
   bool _isFilterCollapsed = false;
 
+  List<LatLng> _rawVisitPoints = [];
   List<LatLng> _fieldVisitRoutePoints = [];
   List<LatLng> _stoppageRoutePoints = [];
   bool _isLoadingVisits = false;
+
+  // Playback animation state
+  int _playbackCurrentIndex = 0;
+  Timer? _playbackTimer;
+  int _playbackSpeedMultiplier = 1; // 1x, 2x, 4x, 8x
+  LatLng? _playbackMarkerPosition;
+  List<String> _locationTimestamps = []; // ISO timestamp per route point
+  List<double> _locationSpeeds = []; // km/h per route point
+  String _playbackCurrentTimestamp = '';
+  double _playbackCurrentSpeed = 0.0;
+  late DateTime _playbackSelectedDate; // currently selected date for playback
 
   final List<Map<String, dynamic>> _tabs = [
     {'title': 'Live', 'icon': Icons.sensors},
@@ -64,6 +77,12 @@ class _EmployeeLiveTrackingScreenState
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
     _mapController = MapController();
+    final initialDate = _getVisitDate();
+    try {
+      _playbackSelectedDate = DateTime.parse(initialDate);
+    } catch (_) {
+      _playbackSelectedDate = DateTime.now();
+    }
     Future.microtask(() {
       final empId = _getEmployeeId();
       final date = _getVisitDate();
@@ -109,67 +128,6 @@ class _EmployeeLiveTrackingScreenState
     return '$y-$m-$d';
   }
 
-  Future<List<LatLng>> _getRoadSnappedRoute(List<LatLng> points) async {
-    if (points.length < 2) return points;
-
-    try {
-      List<LatLng> sampledPoints = points;
-      if (points.length > 25) {
-        sampledPoints = [];
-        final step = (points.length / 25).ceil();
-        for (int i = 0; i < points.length; i += step) {
-          sampledPoints.add(points[i]);
-        }
-        if (sampledPoints.last != points.last) {
-          sampledPoints.add(points.last);
-        }
-      }
-
-      final coordsString = sampledPoints
-          .map(
-            (p) =>
-                '${p.longitude.toStringAsFixed(6)},${p.latitude.toStringAsFixed(6)}',
-          )
-          .join(';');
-
-      final osrmUrl =
-          'https://router.project-osrm.org/route/v1/driving/$coordsString?overview=full&geometries=geojson';
-
-      final dio = Dio();
-      final response = await dio.get(osrmUrl);
-
-      if (response.statusCode == 200 && response.data != null) {
-        final data = response.data;
-        if (data['code'] == 'Ok' &&
-            data['routes'] != null &&
-            (data['routes'] as List).isNotEmpty) {
-          final route = data['routes'][0];
-          final geometry = route['geometry'];
-          if (geometry != null && geometry['coordinates'] != null) {
-            final coordinates = geometry['coordinates'] as List<dynamic>;
-            final List<LatLng> snappedPoints = [];
-            for (final coord in coordinates) {
-              if (coord is List && coord.length >= 2) {
-                final lng = double.tryParse(coord[0].toString());
-                final lat = double.tryParse(coord[1].toString());
-                if (lat != null && lng != null) {
-                  snappedPoints.add(LatLng(lat, lng));
-                }
-              }
-            }
-            if (snappedPoints.isNotEmpty) {
-              return snappedPoints;
-            }
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint("OSRM Road snapping error: $e");
-    }
-
-    return points;
-  }
-
   Map<String, dynamic>? _attendanceData;
   List<dynamic> _visitsData = [];
 
@@ -199,22 +157,72 @@ class _EmployeeLiveTrackingScreenState
     }
   }
 
+  Future<List<LatLng>> _fetchRoadRoute(List<LatLng> points) async {
+    if (points.length < 2) return points;
+
+    final List<LatLng> roadRoute = [];
+    final dio = Dio();
+
+    // Process in chunks of max 20 points for fast & reliable OSRM road routing
+    const chunkSize = 20;
+    for (int i = 0; i < points.length - 1; i += (chunkSize - 1)) {
+      final end = (i + chunkSize < points.length)
+          ? i + chunkSize
+          : points.length;
+      final chunk = points.sublist(i, end);
+      if (chunk.length < 2) continue;
+
+      final coords = chunk.map((p) => '${p.longitude},${p.latitude}').join(';');
+      final url =
+          'https://router.project-osrm.org/route/v1/driving/$coords?overview=full&geometries=geojson';
+
+      try {
+        final response = await dio.get(
+          url,
+          options: Options(
+            connectTimeout: const Duration(seconds: 5),
+            receiveTimeout: const Duration(seconds: 5),
+          ),
+        );
+
+        if (response.statusCode == 200 &&
+            response.data is Map &&
+            response.data['code'] == 'Ok') {
+          final routes = response.data['routes'] as List<dynamic>?;
+          if (routes != null && routes.isNotEmpty) {
+            final geometry = routes[0]['geometry'] as Map<dynamic, dynamic>?;
+            final coordinates = geometry?['coordinates'] as List<dynamic>?;
+            if (coordinates != null) {
+              for (final coord in coordinates) {
+                if (coord is List && coord.length >= 2) {
+                  final lng = (coord[0] as num).toDouble();
+                  final lat = (coord[1] as num).toDouble();
+                  final newPt = LatLng(lat, lng);
+                  if (roadRoute.isEmpty || roadRoute.last != newPt) {
+                    roadRoute.add(newPt);
+                  }
+                }
+              }
+            }
+          } else {
+            roadRoute.addAll(chunk);
+          }
+        } else {
+          roadRoute.addAll(chunk);
+        }
+      } catch (e) {
+        debugPrint('OSRM routing error: $e');
+        roadRoute.addAll(chunk);
+      }
+    }
+
+    return roadRoute.isNotEmpty ? roadRoute : points;
+  }
+
   Future<void> fetchFieldVisits(int empId, String date) async {
     setState(() {
       _isLoadingVisits = true;
     });
-
-    final fallbackPoints = [
-      const LatLng(28.518909, 77.2833571),
-      const LatLng(28.518909, 77.2833571),
-      const LatLng(28.5202165, 77.2844728),
-      const LatLng(28.5206844, 77.2846856),
-      const LatLng(28.5206535, 77.2852117),
-      const LatLng(28.5206221, 77.284631),
-      const LatLng(28.5191987, 77.2846941),
-      const LatLng(28.519491, 77.2845128),
-      const LatLng(28.5189225, 77.283353),
-    ];
 
     try {
       final apiService = ref.read(apiServiceProvider);
@@ -239,6 +247,8 @@ class _EmployeeLiveTrackingScreenState
 
         final List<LatLng> fetchedPoints = [];
         final List<LatLng> stoppagePoints = [];
+        final List<String> timestamps = [];
+        final List<double> speeds = [];
 
         for (final visit in visits) {
           final locations = visit['locations'] as List<dynamic>? ?? [];
@@ -250,6 +260,17 @@ class _EmployeeLiveTrackingScreenState
               if (lat != null && lng != null) {
                 final pt = LatLng(lat, lng);
                 fetchedPoints.add(pt);
+                // Capture timestamp from createdAt or timestamp field
+                final ts =
+                    loc['createdAt']?.toString() ??
+                    loc['created_at']?.toString() ??
+                    loc['timestamp']?.toString() ??
+                    '';
+                timestamps.add(ts);
+                // Capture speed from API or default to 0
+                final spd =
+                    double.tryParse(loc['speed']?.toString() ?? '0') ?? 0.0;
+                speeds.add(spd);
                 if (timeVal > 0) {
                   stoppagePoints.add(pt);
                 }
@@ -257,16 +278,104 @@ class _EmployeeLiveTrackingScreenState
             }
           }
         }
+        final List<LatLng> fallbackPoints = [
+          const LatLng(28.5283, 77.2785),
+          const LatLng(28.5305, 77.2798),
+          const LatLng(28.5325, 77.2810),
+          const LatLng(28.5338, 77.2824),
+          const LatLng(28.5342, 77.2835),
+        ];
+
+        final List<LatLng> activePoints = fetchedPoints.isNotEmpty
+            ? fetchedPoints
+            : fallbackPoints;
+        final List<LatLng> activeStoppages = fetchedPoints.isNotEmpty
+            ? stoppagePoints
+            : [fallbackPoints[1], fallbackPoints[3]];
+
+        // Build per-point timestamps and speeds
+        final List<String> activeTimestamps = fetchedPoints.isNotEmpty
+            ? timestamps
+            : List.generate(5, (i) => ''); // fallback: empty timestamps
+        final List<double> activeSpeeds = fetchedPoints.isNotEmpty
+            ? speeds
+            : List.generate(5, (i) => 2.0); // fallback: 2 km/h
+
+        // Calculate speeds from consecutive points if API returns 0
         if (fetchedPoints.isNotEmpty) {
-          final snapped = await _getRoadSnappedRoute(fetchedPoints);
-          setState(() {
-            _fieldVisitRoutePoints = snapped;
-            _stoppageRoutePoints = stoppagePoints;
-            _isLoadingVisits = false;
-          });
-          _mapController.move(snapped.first, 17.8);
-          return;
+          for (int i = 1; i < fetchedPoints.length; i++) {
+            if (activeSpeeds[i] == 0.0) {
+              // Calculate distance between consecutive points (Haversine)
+              final dist = const Distance().as(
+                LengthUnit.Meter,
+                fetchedPoints[i - 1],
+                fetchedPoints[i],
+              );
+              // Estimate time diff: use timestamps if available
+              double timeDiffHours = 0.01; // 36 seconds default
+              if (activeTimestamps[i].isNotEmpty &&
+                  activeTimestamps[i - 1].isNotEmpty) {
+                try {
+                  final t1 = DateTime.parse(activeTimestamps[i - 1]);
+                  final t2 = DateTime.parse(activeTimestamps[i]);
+                  final diffSec = t2.difference(t1).inSeconds.abs();
+                  if (diffSec > 0) timeDiffHours = diffSec / 3600.0;
+                } catch (_) {}
+              }
+              final speedKmh = (dist / 1000.0) / timeDiffHours;
+              activeSpeeds[i] = speedKmh.clamp(0.0, 200.0);
+            }
+          }
         }
+
+        setState(() {
+          _rawVisitPoints = activePoints;
+          _fieldVisitRoutePoints = activePoints;
+          _stoppageRoutePoints = activeStoppages;
+          _locationTimestamps = activeTimestamps;
+          _locationSpeeds = activeSpeeds;
+          _isLoadingVisits = false;
+          // Reset playback to start
+          _playbackCurrentIndex = 0;
+          _playbackProgress = 0.0;
+          _playbackMarkerPosition = activePoints.isNotEmpty
+              ? activePoints.first
+              : null;
+          _playbackCurrentTimestamp = activeTimestamps.isNotEmpty
+              ? activeTimestamps.first
+              : '';
+          _playbackCurrentSpeed = activeSpeeds.isNotEmpty
+              ? activeSpeeds.first
+              : 0.0;
+        });
+        _mapController.move(activePoints.first, 17.8);
+
+        // Fetch road-snapped route points using OSRM
+        _fetchRoadRoute(activePoints)
+            .then((roadPoints) {
+              if (mounted && roadPoints.isNotEmpty) {
+                final List<LatLng> fullRoadRoute = [];
+
+                if (activePoints.first.latitude != roadPoints.first.latitude ||
+                    activePoints.first.longitude !=
+                        roadPoints.first.longitude) {
+                  fullRoadRoute.add(activePoints.first);
+                }
+                fullRoadRoute.addAll(roadPoints);
+                if (activePoints.last.latitude != roadPoints.last.latitude ||
+                    activePoints.last.longitude != roadPoints.last.longitude) {
+                  fullRoadRoute.add(activePoints.last);
+                }
+
+                setState(() {
+                  _fieldVisitRoutePoints = fullRoadRoute;
+                });
+              }
+            })
+            .catchError((e) {
+              debugPrint("Road route error: $e");
+            });
+        return;
       } else {
         debugPrint(
           "Field visits status code ${responseData?['statusCode']}: ${responseData?['message']}",
@@ -276,45 +385,54 @@ class _EmployeeLiveTrackingScreenState
       debugPrint("Error fetching field visits: $e");
     }
 
-    final fallbackLocations = [
-      {"time": 0, "latitude": 28.518909, "longitude": 77.2833571},
-      {"time": 9, "latitude": 28.518909, "longitude": 77.2833571},
-      {"time": 2, "latitude": 28.5202165, "longitude": 77.2844728},
-      {"time": 6, "latitude": 28.5206844, "longitude": 77.2846856},
-      {"time": 15, "latitude": 28.5206535, "longitude": 77.2852117},
-      {"time": 6, "latitude": 28.5206221, "longitude": 77.284631},
-      {"time": 1, "latitude": 28.5191987, "longitude": 77.2846941},
-      {"time": 0, "latitude": 28.519491, "longitude": 77.2845128},
-      {"time": 0, "latitude": 28.5189225, "longitude": 77.283353},
+    final List<LatLng> fallbackPoints = [
+      const LatLng(28.5283, 77.2785),
+      const LatLng(28.5305, 77.2798),
+      const LatLng(28.5325, 77.2810),
+      const LatLng(28.5338, 77.2824),
+      const LatLng(28.5342, 77.2835),
     ];
 
-    final List<LatLng> fallbackStoppagePoints = [];
-    for (final loc in fallbackLocations) {
-      if ((loc['time'] as int) > 0) {
-        fallbackStoppagePoints.add(
-          LatLng(loc['latitude'] as double, loc['longitude'] as double),
-        );
-      }
-    }
-
-    final snappedFallback = await _getRoadSnappedRoute(fallbackPoints);
     setState(() {
-      _fieldVisitRoutePoints = snappedFallback;
-      _stoppageRoutePoints = fallbackStoppagePoints;
+      _rawVisitPoints = fallbackPoints;
+      _fieldVisitRoutePoints = fallbackPoints;
+      _stoppageRoutePoints = [fallbackPoints[1], fallbackPoints[3]];
       _isLoadingVisits = false;
     });
-    _mapController.move(snappedFallback.first, 17.8);
+    _mapController.move(fallbackPoints.first, 17.8);
+    _fetchRoadRoute(fallbackPoints)
+        .then((roadPoints) {
+          if (mounted && roadPoints.isNotEmpty) {
+            final List<LatLng> fullRoadRoute = [];
+            if (fallbackPoints.first.latitude != roadPoints.first.latitude ||
+                fallbackPoints.first.longitude != roadPoints.first.longitude) {
+              fullRoadRoute.add(fallbackPoints.first);
+            }
+            fullRoadRoute.addAll(roadPoints);
+            if (fallbackPoints.last.latitude != roadPoints.last.latitude ||
+                fallbackPoints.last.longitude != roadPoints.last.longitude) {
+              fullRoadRoute.add(fallbackPoints.last);
+            }
+            setState(() {
+              _fieldVisitRoutePoints = fullRoadRoute;
+            });
+          }
+        })
+        .catchError((_) {});
   }
 
   List<Marker> _buildRouteMarkers() {
-    if (_fieldVisitRoutePoints.isEmpty) return [];
+    final rawPts = _rawVisitPoints.isNotEmpty
+        ? _rawVisitPoints
+        : _fieldVisitRoutePoints;
+    if (rawPts.isEmpty) return [];
 
     List<Marker> markers = [];
 
-    // Start Marker (Green Pin)
+    // Start Marker (Green Pin) at exact raw user start location
     markers.add(
       Marker(
-        point: _fieldVisitRoutePoints.first,
+        point: rawPts.first,
         width: 36,
         height: 36,
         child: Container(
@@ -335,11 +453,11 @@ class _EmployeeLiveTrackingScreenState
       ),
     );
 
-    // End Marker
-    if (_fieldVisitRoutePoints.length > 1) {
+    // End Marker (Blue Person Icon) at exact raw user current location
+    if (rawPts.length > 1) {
       markers.add(
         Marker(
-          point: _fieldVisitRoutePoints.last,
+          point: rawPts.last,
           width: 44,
           height: 44,
           child: Container(
@@ -389,8 +507,158 @@ class _EmployeeLiveTrackingScreenState
     return markers;
   }
 
+  // ──────────────────────────────────────────────────────────
+  // Playback animation controls
+  // ──────────────────────────────────────────────────────────
+
+  void _startPlayback() {
+    if (_fieldVisitRoutePoints.isEmpty) return;
+    _playbackTimer?.cancel();
+    // Interval: ~100ms / speedMultiplier gives smooth animation
+    final interval = Duration(
+      milliseconds: (120 ~/ _playbackSpeedMultiplier).clamp(30, 500),
+    );
+    _playbackTimer = Timer.periodic(interval, (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final total = _fieldVisitRoutePoints.length;
+      if (_playbackCurrentIndex >= total - 1) {
+        // Reached end — stop playback
+        timer.cancel();
+        setState(() {
+          _isPlayingbackPlaying = false;
+          _playbackProgress = 1.0;
+        });
+        return;
+      }
+      setState(() {
+        _playbackCurrentIndex++;
+        _playbackProgress = _playbackCurrentIndex / (total - 1);
+        _playbackMarkerPosition = _fieldVisitRoutePoints[_playbackCurrentIndex];
+        _playbackCurrentTimestamp =
+            _locationTimestamps.length > _playbackCurrentIndex
+            ? _locationTimestamps[_playbackCurrentIndex]
+            : '';
+        _playbackCurrentSpeed = _locationSpeeds.length > _playbackCurrentIndex
+            ? _locationSpeeds[_playbackCurrentIndex]
+            : 0.0;
+      });
+      // Smoothly move map camera to follow the marker
+      if (_playbackMarkerPosition != null) {
+        _mapController.move(
+          _playbackMarkerPosition!,
+          _mapController.camera.zoom,
+        );
+      }
+    });
+  }
+
+  void _pausePlayback() {
+    _playbackTimer?.cancel();
+    _playbackTimer = null;
+    setState(() {
+      _isPlayingbackPlaying = false;
+    });
+  }
+
+  void _seekPlayback(double sliderValue) {
+    _playbackTimer?.cancel();
+    _playbackTimer = null;
+    final total = _fieldVisitRoutePoints.length;
+    if (total == 0) return;
+    final idx = ((total - 1) * sliderValue).round().clamp(0, total - 1);
+    setState(() {
+      _playbackCurrentIndex = idx;
+      _playbackProgress = sliderValue;
+      _playbackMarkerPosition = _fieldVisitRoutePoints[idx];
+      _playbackCurrentTimestamp = _locationTimestamps.length > idx
+          ? _locationTimestamps[idx]
+          : '';
+      _playbackCurrentSpeed = _locationSpeeds.length > idx
+          ? _locationSpeeds[idx]
+          : 0.0;
+      _isPlayingbackPlaying = false;
+    });
+    if (_playbackMarkerPosition != null) {
+      _mapController.move(_playbackMarkerPosition!, _mapController.camera.zoom);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // Date picker for Playback tab — re-fetches API on new date
+  // ─────────────────────────────────────────────────────────
+  Future<void> _showDatePickerForPlayback() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _playbackSelectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      builder: (ctx, child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF0066D4),
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.black87,
+            ),
+            dialogTheme: const DialogThemeData(backgroundColor: Colors.white),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _playbackSelectedDate) {
+      final y = picked.year;
+      final m = picked.month.toString().padLeft(2, '0');
+      final d = picked.day.toString().padLeft(2, '0');
+      final dateStr = '$y-$m-$d';
+      setState(() {
+        _playbackSelectedDate = picked;
+        // Reset playback state while new data loads
+        _isPlayingbackPlaying = false;
+        _playbackCurrentIndex = 0;
+        _playbackProgress = 0.0;
+        _playbackMarkerPosition = null;
+        _playbackCurrentTimestamp = '';
+        _playbackCurrentSpeed = 0.0;
+      });
+      _playbackTimer?.cancel();
+      _playbackTimer = null;
+      // Re-fetch visits for new date, same employee
+      await fetchFieldVisits(_getEmployeeId(), dateStr);
+    }
+  }
+
+  String _formatPlaybackTimestamp(String raw) {
+    if (raw.isEmpty) {
+      // Generate a placeholder based on current index
+      final now = DateTime.now();
+      final y = now.year;
+      final mo = now.month.toString().padLeft(2, '0');
+      final d = now.day.toString().padLeft(2, '0');
+      final h = now.hour.toString().padLeft(2, '0');
+      final mi = now.minute.toString().padLeft(2, '0');
+      return '$y-$mo-$d $h:$mi';
+    }
+    try {
+      final dt = DateTime.parse(raw).toLocal();
+      final y = dt.year;
+      final mo = dt.month.toString().padLeft(2, '0');
+      final d = dt.day.toString().padLeft(2, '0');
+      final h = dt.hour.toString().padLeft(2, '0');
+      final mi = dt.minute.toString().padLeft(2, '0');
+      return '$y-$mo-$d $h:$mi';
+    } catch (_) {
+      return raw.length > 16 ? raw.substring(0, 16) : raw;
+    }
+  }
+
   @override
   void dispose() {
+    _playbackTimer?.cancel();
     _tabController.dispose();
     _mapController.dispose();
     super.dispose();
@@ -732,21 +1000,10 @@ class _EmployeeLiveTrackingScreenState
   }
 
   Widget _buildLiveTab() {
-    final activeRoutePoints = _fieldVisitRoutePoints.isNotEmpty
-        ? _fieldVisitRoutePoints
-        : [
-            const LatLng(28.518909, 77.2833571),
-            const LatLng(28.518909, 77.2833571),
-            const LatLng(28.5202165, 77.2844728),
-            const LatLng(28.5206844, 77.2846856),
-            const LatLng(28.5206535, 77.2852117),
-            const LatLng(28.5206221, 77.284631),
-            const LatLng(28.5191987, 77.2846941),
-            const LatLng(28.519491, 77.2845128),
-            const LatLng(28.5189225, 77.283353),
-          ];
-
-    final initialCenter = activeRoutePoints.first;
+    final activeRoutePoints = _fieldVisitRoutePoints;
+    final initialCenter = activeRoutePoints.isNotEmpty
+        ? activeRoutePoints.first
+        : (_currentLocation ?? const LatLng(20.5937, 78.9629));
 
     return Stack(
       children: [
@@ -770,44 +1027,50 @@ class _EmployeeLiveTrackingScreenState
               subdomains: const ['mt0', 'mt1', 'mt2', 'mt3'],
               userAgentPackageName: 'com.example.satyasolution',
             ),
-            PolylineLayer(
-              polylines: [
-                Polyline(
-                  points: activeRoutePoints,
-                  strokeWidth: 4.5,
-                  color: const Color(0xFF0038A8),
-                ),
-              ],
-            ),
+            if (activeRoutePoints.isNotEmpty)
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: activeRoutePoints,
+                    strokeWidth: 4.5,
+                    color: const Color(0xFF0038A8),
+                  ),
+                ],
+              ),
             MarkerLayer(
               markers: _buildRouteMarkers().isNotEmpty
                   ? _buildRouteMarkers()
-                  : [
-                      Marker(
-                        point: initialCenter,
-                        width: 48,
-                        height: 48,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1976D2),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2.5),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.black38,
-                                blurRadius: 6,
-                                offset: Offset(0, 3),
+                  : (_currentLocation != null
+                        ? [
+                            Marker(
+                              point: _currentLocation!,
+                              width: 48,
+                              height: 48,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1976D2),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2.5,
+                                  ),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.black38,
+                                      blurRadius: 6,
+                                      offset: Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.person,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
                               ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.person,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                        ),
-                      ),
-                    ],
+                            ),
+                          ]
+                        : []),
             ),
           ],
         ),
@@ -882,55 +1145,159 @@ class _EmployeeLiveTrackingScreenState
 
   // Trackwick Playback Tab View: 100% Full-Screen Map with 360° Overlay, Right Map Controls & Bottom Player Bar
   Widget _buildPlaybackTab() {
-    final liveLocation = _currentLocation ?? const LatLng(26.650, 84.910);
-    final routePoints = [
-      const LatLng(26.635, 84.885),
-      const LatLng(26.640, 84.895),
-      const LatLng(26.645, 84.902),
-      liveLocation,
-      const LatLng(26.648, 84.918),
-      const LatLng(26.640, 84.925),
-      const LatLng(26.630, 84.930),
-      const LatLng(26.618, 84.932),
-    ];
+    final activeRoutePoints = _fieldVisitRoutePoints;
+    final initialCenter = activeRoutePoints.isNotEmpty
+        ? activeRoutePoints.first
+        : (_currentLocation ?? const LatLng(20.5937, 78.9629));
 
     return Stack(
       children: [
         // 1. 100% Full-Screen Google Map
         FlutterMap(
           mapController: _mapController,
-          options: MapOptions(initialCenter: liveLocation, initialZoom: 17.8),
+          options: MapOptions(initialCenter: initialCenter, initialZoom: 17.8),
           children: [
             TileLayer(
               urlTemplate: 'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
               subdomains: const ['mt0', 'mt1', 'mt2', 'mt3'],
               userAgentPackageName: 'com.example.satyasolution',
             ),
-            PolylineLayer(
-              polylines: [
-                Polyline(
-                  points: routePoints,
-                  strokeWidth: 4.5,
-                  color: const Color(0xFF0038A8),
-                ),
-              ],
-            ),
+            if (activeRoutePoints.isNotEmpty)
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: activeRoutePoints,
+                    strokeWidth: 4.5,
+                    color: const Color(0xFF0038A8),
+                  ),
+                ],
+              ),
+            // Travelled portion (lighter blue overlay)
+            if (activeRoutePoints.isNotEmpty &&
+                _playbackCurrentIndex > 0 &&
+                _playbackCurrentIndex < activeRoutePoints.length)
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: activeRoutePoints.sublist(
+                      0,
+                      _playbackCurrentIndex + 1,
+                    ),
+                    strokeWidth: 4.5,
+                    color: const Color(0xFF42A5F5),
+                  ),
+                ],
+              ),
             MarkerLayer(
               markers: [
-                Marker(
-                  point: liveLocation,
-                  width: 48,
-                  height: 48,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1976D2),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2.5),
+                // Start marker (green)
+                if (activeRoutePoints.isNotEmpty)
+                  Marker(
+                    point: activeRoutePoints.first,
+                    width: 32,
+                    height: 32,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4CAF50),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.play_arrow,
+                        color: Colors.white,
+                        size: 18,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.person,
-                      color: Colors.white,
-                      size: 28,
+                  ),
+                // End marker (red flag)
+                if (activeRoutePoints.length > 1)
+                  Marker(
+                    point: activeRoutePoints.last,
+                    width: 32,
+                    height: 32,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade600,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.flag,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ),
+                  ),
+                // Animated playback marker (person icon)
+                if (_playbackMarkerPosition != null)
+                  Marker(
+                    point: _playbackMarkerPosition!,
+                    width: 44,
+                    height: 44,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1976D2),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2.5),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black38,
+                            blurRadius: 6,
+                            offset: Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 26,
+                      ),
+                    ),
+                  )
+                else if (_currentLocation != null)
+                  Marker(
+                    point: _currentLocation!,
+                    width: 44,
+                    height: 44,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1976D2),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2.5),
+                      ),
+                      child: const Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 26,
+                      ),
+                    ),
+                  ),
+                // Stoppage bindi markers
+                ..._stoppageRoutePoints.map(
+                  (pt) => Marker(
+                    point: pt,
+                    width: 14,
+                    height: 14,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0038A8),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
                     ),
                   ),
                 ),
@@ -1067,21 +1434,45 @@ class _EmployeeLiveTrackingScreenState
       ),
       child: Row(
         children: [
-          IconButton(
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            icon: Icon(
-              _isPlayingbackPlaying ? Icons.pause : Icons.play_arrow,
-              size: 22,
-              color: Colors.black87,
-            ),
-            onPressed: () {
-              setState(() {
-                _isPlayingbackPlaying = !_isPlayingbackPlaying;
-              });
+          // Play / Pause button
+          GestureDetector(
+            onTap: () {
+              if (_fieldVisitRoutePoints.isEmpty) return;
+              if (_isPlayingbackPlaying) {
+                _pausePlayback();
+              } else {
+                // If at end, restart from beginning
+                if (_playbackCurrentIndex >=
+                    _fieldVisitRoutePoints.length - 1) {
+                  setState(() {
+                    _playbackCurrentIndex = 0;
+                    _playbackProgress = 0.0;
+                    _playbackMarkerPosition = _fieldVisitRoutePoints.first;
+                    _playbackCurrentTimestamp = _locationTimestamps.isNotEmpty
+                        ? _locationTimestamps.first
+                        : '';
+                    _playbackCurrentSpeed = _locationSpeeds.isNotEmpty
+                        ? _locationSpeeds.first
+                        : 0.0;
+                  });
+                }
+                setState(() {
+                  _isPlayingbackPlaying = true;
+                });
+                _startPlayback();
+              }
             },
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              child: Icon(
+                _isPlayingbackPlaying ? Icons.pause : Icons.play_arrow,
+                size: 24,
+                color: Colors.black87,
+              ),
+            ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
+          // Timeline Slider
           Expanded(
             child: SliderTheme(
               data: const SliderThemeData(
@@ -1089,29 +1480,74 @@ class _EmployeeLiveTrackingScreenState
                 thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
               ),
               child: Slider(
-                value: _playbackProgress,
+                value: _playbackProgress.clamp(0.0, 1.0),
                 activeColor: const Color(0xFF0066D4),
                 inactiveColor: Colors.grey.shade300,
                 onChanged: (val) {
-                  setState(() {
-                    _playbackProgress = val;
-                  });
+                  _seekPlayback(val);
                 },
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          Row(
-            children: const [
-              Icon(Icons.speed, size: 15, color: Color(0xFF0066D4)),
-              SizedBox(width: 4),
-              Text(
-                '2.00 KM/H  2026-07-28 07:05',
-                style: TextStyle(
+          const SizedBox(width: 6),
+          // Speed multiplier button
+          GestureDetector(
+            onTap: () {
+              // Cycle: 1x → 2x → 4x → 8x → 1x
+              setState(() {
+                _playbackSpeedMultiplier = _playbackSpeedMultiplier == 1
+                    ? 2
+                    : _playbackSpeedMultiplier == 2
+                    ? 4
+                    : _playbackSpeedMultiplier == 4
+                    ? 8
+                    : 1;
+              });
+              if (_isPlayingbackPlaying) {
+                // Restart with new speed
+                _startPlayback();
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0066D4).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                '${_playbackSpeedMultiplier}x',
+                style: const TextStyle(
                   fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0066D4),
                 ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          // Speed & timestamp display
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.speed, size: 13, color: Color(0xFF0066D4)),
+                  const SizedBox(width: 3),
+                  Text(
+                    '${_playbackCurrentSpeed.toStringAsFixed(2)} KM/H',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                _formatPlaybackTimestamp(_playbackCurrentTimestamp),
+                style: const TextStyle(fontSize: 9, color: Colors.black54),
               ),
             ],
           ),
@@ -1208,18 +1644,54 @@ class _EmployeeLiveTrackingScreenState
             ],
           ),
           const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              border: Border.all(color: const Color(0xFFCBD5E1)),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: const [
-                Text('Today', style: TextStyle(fontSize: 12)),
-                Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.grey),
-              ],
+          // Date picker dropdown (replaces static "Today" field)
+          GestureDetector(
+            onTap: _showDatePickerForPlayback,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFFCBD5E1)),
+                borderRadius: BorderRadius.circular(6),
+                color: Colors.white,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.calendar_today_outlined,
+                        size: 13,
+                        color: Color(0xFF0066D4),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        () {
+                          final now = DateTime.now();
+                          final isToday =
+                              _playbackSelectedDate.year == now.year &&
+                              _playbackSelectedDate.month == now.month &&
+                              _playbackSelectedDate.day == now.day;
+                          return isToday
+                              ? 'Today'
+                              : '${_playbackSelectedDate.day.toString().padLeft(2, '0')}'
+                                    '/${_playbackSelectedDate.month.toString().padLeft(2, '0')}'
+                                    '/${_playbackSelectedDate.year}';
+                        }(),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Icon(
+                    Icons.keyboard_arrow_down,
+                    size: 18,
+                    color: Colors.grey,
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 10),
@@ -1681,43 +2153,62 @@ class _EmployeeLiveTrackingScreenState
         ? '${_visitsData.length}'
         : '1';
 
+    // Format selected date label
+    final now = DateTime.now();
+    final isToday =
+        _playbackSelectedDate.year == now.year &&
+        _playbackSelectedDate.month == now.month &&
+        _playbackSelectedDate.day == now.day;
+    final dateLabel = isToday
+        ? 'Today'
+        : '${_playbackSelectedDate.day.toString().padLeft(2, '0')}'
+              '/${_playbackSelectedDate.month.toString().padLeft(2, '0')}'
+              '/${_playbackSelectedDate.year}';
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       color: Colors.white,
       child: Row(
         children: [
-          // Split Date Pill Box: "Today" | [📅]
-          Container(
-            height: 30,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: const Color(0xFFD0D5DD)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8),
-                  child: Text(
-                    'Today',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black87,
+          // Split Date Pill Box: "Today" | [📅] — tappable to change date
+          GestureDetector(
+            onTap: _showDatePickerForPlayback,
+            child: Container(
+              height: 30,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFFD0D5DD)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      dateLabel,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
                     ),
                   ),
-                ),
-                Container(width: 1, height: 30, color: const Color(0xFFD0D5DD)),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 6),
-                  child: Icon(
-                    Icons.calendar_today_outlined,
-                    size: 13,
-                    color: Colors.black87,
+                  Container(
+                    width: 1,
+                    height: 30,
+                    color: const Color(0xFFD0D5DD),
                   ),
-                ),
-              ],
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 6),
+                    child: Icon(
+                      Icons.calendar_today_outlined,
+                      size: 13,
+                      color: Color(0xFF0066D4),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const Spacer(),

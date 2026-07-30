@@ -648,7 +648,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
   }
 }
 
-class TimeoutShimmerLoader extends StatefulWidget {
+class TimeoutShimmerLoader extends ConsumerStatefulWidget {
   final String fallbackText;
   final Duration timeout;
 
@@ -659,10 +659,10 @@ class TimeoutShimmerLoader extends StatefulWidget {
   });
 
   @override
-  State<TimeoutShimmerLoader> createState() => _TimeoutShimmerLoaderState();
+  ConsumerState<TimeoutShimmerLoader> createState() => _TimeoutShimmerLoaderState();
 }
 
-class _TimeoutShimmerLoaderState extends State<TimeoutShimmerLoader> {
+class _TimeoutShimmerLoaderState extends ConsumerState<TimeoutShimmerLoader> {
   bool _showFallback = false;
   Timer? _timer;
 

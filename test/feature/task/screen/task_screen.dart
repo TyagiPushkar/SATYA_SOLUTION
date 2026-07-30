@@ -1315,7 +1315,7 @@ class _DynamicCreateEmployeeBottomSheetState
   }
 }
 
-class BlinkingTouchIcon extends StatefulWidget {
+class BlinkingTouchIcon extends ConsumerStatefulWidget {
   final Color color;
   final double size;
 
@@ -1326,10 +1326,10 @@ class BlinkingTouchIcon extends StatefulWidget {
   });
 
   @override
-  State<BlinkingTouchIcon> createState() => _BlinkingTouchIconState();
+  ConsumerState<BlinkingTouchIcon> createState() => _BlinkingTouchIconState();
 }
 
-class _BlinkingTouchIconState extends State<BlinkingTouchIcon>
+class _BlinkingTouchIconState extends ConsumerState<BlinkingTouchIcon>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _opacityAnimation;

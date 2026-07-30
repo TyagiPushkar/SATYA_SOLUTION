@@ -6,11 +6,25 @@ import '../../../core/widgets/app_sizebox.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../provider/monthly_records_provider.dart';
 
-class MonthlyRecordsScreen extends ConsumerWidget {
+class MonthlyRecordsScreen extends ConsumerStatefulWidget {
   const MonthlyRecordsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MonthlyRecordsScreen> createState() =>
+      _MonthlyRecordsScreenState();
+}
+
+class _MonthlyRecordsScreenState extends ConsumerState<MonthlyRecordsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      ref.read(monthlyRecordsProvider.notifier).refreshData();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(monthlyRecordsProvider);
 
     return Scaffold(
@@ -35,8 +49,6 @@ class MonthlyRecordsScreen extends ConsumerWidget {
                     _buildCalendarCard(state),
                     const AppSizeBox.h(16),
 
-                    // Daily Records Table / List Header
-                    //_buildDailyRecordsSection(state),
                   ],
                 ),
               ),
@@ -181,17 +193,19 @@ class MonthlyRecordsScreen extends ConsumerWidget {
                   ? Colors.black87
                   : Colors.grey.shade400;
 
-              if (status == 'ABSENT') {
+              final cleanStatus = status.trim().toUpperCase();
+
+              if (cleanStatus == 'ABSENT' || cleanStatus == 'AB') {
                 bg = Colors.red;
                 txtColor = Colors.white;
-              } else if (status == 'PRESENT') {
+              } else if (cleanStatus == 'PRESENT' || cleanStatus == 'PR') {
                 bg = Colors.green;
                 txtColor = Colors.white;
-              } else if (status == 'HALF_DAY') {
+              } else if (cleanStatus == 'HALF_DAY' || cleanStatus == 'HD') {
                 bg = Colors.orange;
                 txtColor = Colors.white;
-              } else if (status == 'CLOCKED_IN') {
-                bg = Colors.blue;
+              } else if (cleanStatus == 'CLOCKED_IN' || cleanStatus == 'CLOCKED IN') {
+                bg = Colors.grey;
                 txtColor = Colors.white;
               }
 
@@ -232,7 +246,7 @@ class MonthlyRecordsScreen extends ConsumerWidget {
         _buildLegendItem('Present', Colors.green),
         _buildLegendItem('Half Day', Colors.orange),
         _buildLegendItem('Absent', Colors.red),
-        _buildLegendItem('Non-Working', Colors.blue),
+        _buildLegendItem('Clocked In', Colors.grey),
         _buildLegendItem('On Leave', Colors.purple),
         _buildLegendItem('Holiday', Colors.pink),
       ],
@@ -253,118 +267,4 @@ class MonthlyRecordsScreen extends ConsumerWidget {
       ],
     );
   }
-
-  // Widget _buildDailyRecordsSection(MonthlyRecordsState state) {
-  //   final dailyRecords = state.dailyRecords;
-  //   return Column(
-  //     crossAxisAlignment: CrossAxisAlignment.start,
-  //     children: [
-  //       Row(
-  //         children: [
-  //           const Icon(Icons.list, color: AppColors.primary, size: 20),
-  //           const AppSizeBox.w(8),
-  //           AppText('Daily Records', fontSize: 16, fontWeight: FontWeight.bold),
-  //         ],
-  //       ),
-  //       const AppSizeBox.h(12),
-  //       ListView.builder(
-  //         shrinkWrap: true,
-  //         physics: const NeverScrollableScrollPhysics(),
-  //         itemCount: dailyRecords.length,
-  //         itemBuilder: (context, index) {
-  //           final record = dailyRecords[index];
-  //           final String date = record['date'];
-  //           final String firstIn = record['firstIn'];
-  //           final String lastOut = record['lastOut'];
-  //           final String duration = record['duration'];
-  //           final String status = record['status'];
-  //           final Color color = record['color'];
-  //           return Container(
-  //             margin: const EdgeInsets.only(bottom: 12),
-  //             padding: const EdgeInsets.all(12),
-  //             decoration: BoxDecoration(
-  //               color: Colors.white,
-  //               borderRadius: BorderRadius.circular(8),
-  //               border: Border.all(color: Colors.grey.shade300),
-  //             ),
-  //             child: Column(
-  //               crossAxisAlignment: CrossAxisAlignment.start,
-  //               children: [
-  //                 Row(
-  //                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //                   children: [
-  //                     AppText(date, fontWeight: FontWeight.bold, fontSize: 14),
-  //                     Container(
-  //                       padding: const EdgeInsets.symmetric(
-  //                         horizontal: 8,
-  //                         vertical: 4,
-  //                       ),
-  //                       decoration: BoxDecoration(
-  //                         color: color.withValues(alpha: 0.1),
-  //                         borderRadius: BorderRadius.circular(12),
-  //                         border: Border.all(
-  //                           color: color.withValues(alpha: 0.3),
-  //                         ),
-  //                       ),
-  //                       child: AppText(
-  //                         status,
-  //                         color: color,
-  //                         fontWeight: FontWeight.bold,
-  //                         fontSize: 12,
-  //                       ),
-  //                     ),
-  //                   ],
-  //                 ),
-  //                 const Divider(height: 16),
-  //                 Row(
-  //                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //                   children: [
-  //                     _buildDetailItem('First In', firstIn),
-  //                     _buildDetailItem('Last Out', lastOut),
-  //                     _buildDetailItem('Duration', duration),
-  //                   ],
-  //                 ),
-  //                 if (status == 'AB') ...[
-  //                   const Divider(height: 16),
-  //                   Align(
-  //                     alignment: Alignment.centerRight,
-  //                     child: SizedBox(
-  //                       height: 28,
-  //                       child: ElevatedButton(
-  //                         onPressed: () {},
-  //                         style: ElevatedButton.styleFrom(
-  //                           backgroundColor: Colors.blue.shade700,
-  //                           padding: const EdgeInsets.symmetric(horizontal: 12),
-  //                           shape: RoundedRectangleBorder(
-  //                             borderRadius: BorderRadius.circular(4),
-  //                           ),
-  //                         ),
-  //                         child: const Icon(
-  //                           Icons.add,
-  //                           color: Colors.white,
-  //                           size: 16,
-  //                         ),
-  //                       ),
-  //                     ),
-  //                   ),
-  //                 ],
-  //               ],
-  //             ),
-  //           );
-  //         },
-  //       ),
-  //     ],
-  //   );
-  // }
-
-  // Widget _buildDetailItem(String label, String value) {
-  //   return Column(
-  //     crossAxisAlignment: CrossAxisAlignment.start,
-  //     children: [
-  //       AppText(label, fontSize: 11, color: Colors.grey.shade600),
-  //       const AppSizeBox.h(2),
-  //       AppText(value, fontSize: 13, fontWeight: FontWeight.w600),
-  //     ],
-  //   );
-  // }
 }

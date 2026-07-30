@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:dio/dio.dart';
 import 'package:geolocator/geolocator.dart';
 import 'app_sizebox.dart';
 
-class LocationPickerDialog extends StatefulWidget {
+class LocationPickerDialog extends ConsumerStatefulWidget {
   final String? initialValue;
   final String? selectedState;
   const LocationPickerDialog({
@@ -15,15 +16,15 @@ class LocationPickerDialog extends StatefulWidget {
   });
 
   @override
-  State<LocationPickerDialog> createState() => _LocationPickerDialogState();
+  ConsumerState<LocationPickerDialog> createState() => _LocationPickerDialogState();
 }
 
-class _LocationPickerDialogState extends State<LocationPickerDialog> {
+class _LocationPickerDialogState extends ConsumerState<LocationPickerDialog> {
   final MapController _mapController = MapController();
   final TextEditingController _searchController = TextEditingController();
   final Dio _dio = Dio();
 
-  LatLng _currentCenter = const LatLng(26.8467, 80.9462); // Default
+  LatLng? _currentCenter;
   LatLng? _selectedLatLng;
   bool _isSearching = false;
   bool _isSatellite = false;
@@ -31,104 +32,45 @@ class _LocationPickerDialogState extends State<LocationPickerDialog> {
   List<Map<String, dynamic>> _suggestions = [];
   bool _showSuggestions = false;
 
-  LatLng _getInitialLatLngForQuery(String query) {
-    final q = query.toLowerCase();
-    if (q.contains('hazratganj')) {
-      return const LatLng(26.8530, 80.9450); // Hazratganj, Lucknow
-    }
-    if (q.contains('gomti') || q.contains('gomtinagar')) {
-      return const LatLng(26.8488, 80.9984); // Gomti Nagar, Lucknow
-    }
-    if (q.contains('alambagh')) {
-      return const LatLng(26.8150, 80.9000); // Alambagh, Lucknow
-    }
-    if (q.contains('charbagh')) {
-      return const LatLng(26.8300, 80.9200); // Charbagh, Lucknow
-    }
-    if (q.contains('nangloi') ||
-        q.contains('delhi') ||
-        q.contains('ncr') ||
-        q.contains('new delhi') ||
-        q.contains('okhla')) {
-      return const LatLng(28.5355, 77.2711); // Okhla / New Delhi
-    }
-    if (q.contains('rajasthan') || q.contains('jaipur')) {
-      return const LatLng(26.9124, 75.7873);
-    }
-    if (q.contains('mumbai') || q.contains('maharashtra')) {
-      return const LatLng(19.0760, 72.8777);
-    }
-    if (q.contains('kolkata') || q.contains('bengal')) {
-      return const LatLng(22.5726, 88.3639);
-    }
-    if (q.contains('chennai') || q.contains('tamil')) {
-      return const LatLng(13.0827, 80.2707);
-    }
-    if (q.contains('bangalore') ||
-        q.contains('bengaluru') ||
-        q.contains('karnataka')) {
-      return const LatLng(12.9716, 77.5946);
-    }
-    if (q.contains('hyderabad') || q.contains('telangana')) {
-      return const LatLng(17.3850, 78.4867);
-    }
-    if (q.contains('ahmedabad') || q.contains('gujarat')) {
-      return const LatLng(23.0225, 72.5714);
-    }
-    if (q.contains('lucknow') ||
-        q.contains('up') ||
-        q.contains('uttar pradesh')) {
-      return const LatLng(26.8467, 80.9462);
-    }
-    return const LatLng(28.5355, 77.2711); // Default Delhi NCR / Okhla
-  }
-
   @override
   void initState() {
     super.initState();
 
-    String startQuery = '';
-    if (widget.initialValue != null && widget.initialValue!.isNotEmpty) {
-      startQuery = widget.initialValue!;
-    } else if (widget.selectedState != null &&
-        widget.selectedState!.isNotEmpty) {
-      startQuery = widget.selectedState!;
-    }
+    _searchController.text = 'Fetching current location...';
 
-    if (startQuery.isNotEmpty) {
-      _currentCenter = _getInitialLatLngForQuery(startQuery);
-      _selectedLatLng = _currentCenter;
-      _searchController.text = startQuery;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _performSearch(startQuery);
-      });
-    } else {
-      _searchController.text = 'Fetching current location...';
-      _currentCenter = const LatLng(28.5355, 77.2711);
-      _selectedLatLng = _currentCenter;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      setState(() => _isSearching = true);
+      final locData = await _fetchCurrentLocationData();
+      if (!mounted) return;
+      setState(() => _isSearching = false);
 
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        setState(() => _isSearching = true);
-        final locData = await _fetchCurrentLocationData();
-        setState(() => _isSearching = false);
-        if (locData != null) {
-          final LatLng newLatLng = locData['latLng'];
-          final String addr = locData['address'];
-          setState(() {
-            _selectedLatLng = newLatLng;
-            _currentCenter = newLatLng;
-            _searchController.text = addr.isNotEmpty
-                ? addr
-                : 'DLF Prime Towers, 419, F Block, Mata Mohalla, Pocket F, Okhla Phase I, Okhla Industrial Estate, New Delhi, Delhi 110020, India';
-          });
-          _mapController.move(newLatLng, 15.0);
-        } else {
-          _searchController.text =
-              'DLF Prime Towers, 419, F Block, Mata Mohalla, Pocket F, Okhla Phase I, Okhla Industrial Estate, New Delhi, Delhi 110020, India';
-          _performSearch(_searchController.text);
+      if (locData != null) {
+        final LatLng newLatLng = locData['latLng'];
+        final String addr = locData['address'];
+        setState(() {
+          _selectedLatLng = newLatLng;
+          _currentCenter = newLatLng;
+          _searchController.text = addr;
+        });
+        _mapController.move(newLatLng, 15.0);
+      } else {
+        String startQuery = '';
+        if (widget.initialValue != null && widget.initialValue!.isNotEmpty) {
+          startQuery = widget.initialValue!;
+        } else if (widget.selectedState != null &&
+            widget.selectedState!.isNotEmpty) {
+          startQuery = widget.selectedState!;
         }
-      });
-    }
+
+        if (startQuery.isNotEmpty) {
+          _searchController.text = startQuery;
+          _performSearch(startQuery);
+        } else {
+          _searchController.text = 'Location unavailable';
+        }
+      }
+    });
   }
 
   @override
@@ -139,6 +81,8 @@ class _LocationPickerDialogState extends State<LocationPickerDialog> {
   }
 
   Future<Map<String, dynamic>?> _fetchCurrentLocationData() async {
+    Position? position;
+
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (serviceEnabled) {
@@ -148,37 +92,65 @@ class _LocationPickerDialogState extends State<LocationPickerDialog> {
         }
         if (permission == LocationPermission.whileInUse ||
             permission == LocationPermission.always) {
-          final position = await Geolocator.getCurrentPosition(
-            locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.high,
-              timeLimit: Duration(seconds: 5),
-            ),
-          );
-          final latLng = LatLng(position.latitude, position.longitude);
-
-          final response = await _dio.get(
-            'https://nominatim.openstreetmap.org/reverse',
-            queryParameters: {
-              'lat': latLng.latitude,
-              'lon': latLng.longitude,
-              'format': 'json',
-            },
-            options: Options(
-              headers: {
-                'User-Agent':
-                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              },
-            ),
-          );
-          String address = '';
-          if (response.data != null && response.data['display_name'] != null) {
-            address = response.data['display_name'].toString();
+          try {
+            position = await Geolocator.getCurrentPosition(
+              locationSettings: const LocationSettings(
+                accuracy: LocationAccuracy.high,
+                timeLimit: Duration(seconds: 4),
+              ),
+            );
+          } catch (e) {
+            debugPrint(
+              'getCurrentPosition error/timeout, using getLastKnownPosition: $e',
+            );
+            position = await Geolocator.getLastKnownPosition();
           }
-          return {'latLng': latLng, 'address': address};
         }
       }
     } catch (e) {
       debugPrint('Geolocator error: $e');
+    }
+
+    if (position == null) {
+      try {
+        position = await Geolocator.getLastKnownPosition();
+      } catch (e) {
+        debugPrint('getLastKnownPosition error: $e');
+      }
+    }
+
+    if (position != null) {
+      final latLng = LatLng(position.latitude, position.longitude);
+      String address = '';
+
+      try {
+        final response = await _dio.get(
+          'https://nominatim.openstreetmap.org/reverse',
+          queryParameters: {
+            'lat': latLng.latitude,
+            'lon': latLng.longitude,
+            'format': 'json',
+          },
+          options: Options(
+            headers: {
+              'User-Agent':
+                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            },
+          ),
+        );
+        if (response.data != null && response.data['display_name'] != null) {
+          address = response.data['display_name'].toString();
+        }
+      } catch (e) {
+        debugPrint('Reverse geocode error (offline): $e');
+      }
+
+      if (address.isEmpty) {
+        address =
+            'Lat: ${latLng.latitude.toStringAsFixed(6)}, Lon: ${latLng.longitude.toStringAsFixed(6)}';
+      }
+
+      return {'latLng': latLng, 'address': address};
     }
 
     try {
@@ -288,13 +260,6 @@ class _LocationPickerDialogState extends State<LocationPickerDialog> {
       _showSuggestions = false;
     });
 
-    final preset = _getInitialLatLngForQuery(query);
-    setState(() {
-      _selectedLatLng = preset;
-      _currentCenter = preset;
-    });
-    _mapController.move(preset, 15.5);
-
     try {
       final List<String> candidateQueries = [];
       final parts = query
@@ -395,9 +360,18 @@ class _LocationPickerDialogState extends State<LocationPickerDialog> {
             _showSuggestions = false;
           });
         }
+        return;
       }
     } catch (e) {
       debugPrint('Error reverse geocoding: $e');
+    }
+
+    if (mounted) {
+      setState(() {
+        _searchController.text =
+            'Lat: ${point.latitude.toStringAsFixed(6)}, Lon: ${point.longitude.toStringAsFixed(6)}';
+        _showSuggestions = false;
+      });
     }
   }
 
@@ -515,7 +489,7 @@ class _LocationPickerDialogState extends State<LocationPickerDialog> {
                   FlutterMap(
                     mapController: _mapController,
                     options: MapOptions(
-                      initialCenter: _currentCenter,
+                      initialCenter: _currentCenter ?? const LatLng(0, 0),
                       initialZoom: 14.0,
                       onTap: (tapPosition, point) {
                         setState(() {
@@ -738,10 +712,8 @@ class _LocationPickerDialogState extends State<LocationPickerDialog> {
                             if (addr.isNotEmpty) _searchController.text = addr;
                           });
                           _mapController.move(newLatLng, 15.0);
-                        } else {
-                          final center =
-                              _selectedLatLng ?? const LatLng(28.5355, 77.2711);
-                          _mapController.move(center, 14.0);
+                        } else if (_selectedLatLng != null) {
+                          _mapController.move(_selectedLatLng!, 14.0);
                         }
                       },
                       child: Container(
@@ -847,10 +819,7 @@ class _LocationPickerDialogState extends State<LocationPickerDialog> {
                   const AppSizeBox.w(10),
                   ElevatedButton(
                     onPressed: () {
-                      Navigator.pop(
-                        context,
-                        _searchController.text.trim(),
-                      );
+                      Navigator.pop(context, _searchController.text.trim());
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF0E73D3),
