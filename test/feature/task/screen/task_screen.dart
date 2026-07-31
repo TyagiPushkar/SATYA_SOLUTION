@@ -13,6 +13,8 @@ import '../../auth/provider/employee_form_fields_provider.dart';
 import '../../../core/widgets/app_card_skeleton.dart';
 import '../../home/screen/main_screen.dart';
 import 'package:shimmer/shimmer.dart';
+import '../../../core/providers/permission_provider.dart';
+import '../../../core/models/permission_model.dart';
 
 class TaskScreen extends ConsumerStatefulWidget {
   final bool showBackButton;
@@ -275,16 +277,42 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
     );
   }
 
+  bool _canAddForCurrentTab(UserPermission? perms, String title) {
+    if (perms == null) return false;
+    final cleanTitle = title.trim().toLowerCase();
+
+    if (cleanTitle == 'all task' ||
+        cleanTitle == 'all tasks' ||
+        cleanTitle == 'my task' ||
+        cleanTitle == 'tasks') {
+      return perms.task.taskAll.add;
+    } else if (cleanTitle == 'team task' || cleanTitle == 'team tasks') {
+      return perms.task.teamTask.add;
+    } else if (cleanTitle == 'customer task' || cleanTitle == 'customer tasks') {
+      return perms.task.taskCustomer.add;
+    } else if (cleanTitle == 'deleted tasks' || cleanTitle == 'deleted task') {
+      return perms.task.deletedTasks.add;
+    } else if (cleanTitle == 'onboarding task' ||
+        cleanTitle == 'onboarding tasks') {
+      return perms.task.onboardingTask.add;
+    } else if (cleanTitle == 'all employees' || cleanTitle == 'all employee') {
+      return perms.employee.allEmployee.add;
+    } else if (cleanTitle == 'my team') {
+      return perms.employee.myTeam.add;
+    }
+    return perms.task.taskAll.add;
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen<int>(mainScreenTabProvider, (previous, next) {
       if (next == 1) {
         final currentTitle = ref.read(taskTitleProvider);
-        if (currentTitle == 'Customer Tasks') {
+        if (currentTitle == 'Customer Tasks' || currentTitle == 'Customer Task') {
           ref
               .read(customerScreenProvider.notifier)
               .fetchCustomers(refresh: true);
-        } else if (currentTitle == 'All Employees') {
+        } else if (currentTitle == 'All Employees' || currentTitle == 'All Employee') {
           ref.read(employeeListProvider.notifier).fetchEmployees(refresh: true);
         } else {
           ref.read(taskScreenProvider.notifier).fetchTasks(refresh: true);
@@ -296,10 +324,13 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
     final customerState = ref.watch(customerScreenProvider);
     final employeeState = ref.watch(employeeListProvider);
     final title = ref.watch(taskTitleProvider);
+    final permAsync = ref.watch(permissionProvider);
+    final perms = permAsync.value;
 
-    final isCustomerMode = title == 'Customer Tasks';
-    final isEmployeeMode = title == 'All Employees';
-    final isTeamMode = title == 'Team Task' || title == 'Team Tasks';
+    final isCustomerMode = title == 'Customer Tasks' || title == 'Customer Task';
+    final isEmployeeMode = title == 'All Employees' || title == 'All Employee';
+
+    final canAdd = _canAddForCurrentTab(perms, title);
 
     final filteredTasks = _getFilteredTasks(taskState.tasks);
 
@@ -322,107 +353,109 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
         backgroundColor: AppColors.primary,
         textColor: AppColors.white,
         actions: [
-          if (isEmployeeMode)
-            GestureDetector(
-              onTap: () => context.push('/create-employee'),
-              child: Container(
-                height: 38,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: BorderRadius.circular(8),
+          if (canAdd) ...[
+            if (isEmployeeMode)
+              GestureDetector(
+                onTap: () => context.push('/create-employee'),
+                child: Container(
+                  height: 38,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.add_circle_outline,
+                        color: AppColors.primary,
+                        size: 18,
+                      ),
+                      const AppSizeBox.w(4),
+                      AppText(
+                        'Create Employee',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: AppColors.primary,
+                      ),
+                    ],
+                  ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.add_circle_outline,
-                      color: AppColors.primary,
-                      size: 18,
-                    ),
-                    const AppSizeBox.w(4),
-                    AppText(
-                      'Create Employee',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: AppColors.primary,
-                    ),
-                  ],
+              )
+            else if (isCustomerMode)
+              GestureDetector(
+                onTap: () async {
+                  final result = await context.push('/add-customer');
+                  if (result != null) {
+                    ref
+                        .read(customerScreenProvider.notifier)
+                        .fetchCustomers(refresh: true);
+                  }
+                },
+                child: Container(
+                  height: 38,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.add_circle_outline,
+                        color: AppColors.primary,
+                        size: 18,
+                      ),
+                      const AppSizeBox.w(4),
+                      AppText(
+                        'Add Customer',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: AppColors.primary,
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              GestureDetector(
+                onTap: () async {
+                  final result = await context.push('/create-task');
+                  if (result == true || result != null) {
+                    ref
+                        .read(taskScreenProvider.notifier)
+                        .fetchTasks(refresh: true);
+                  }
+                },
+                child: Container(
+                  height: 40,
+                  width: 130,
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.add_circle_outline,
+                        color: AppColors.primary,
+                      ),
+                      const AppSizeBox.w(4),
+                      AppText(
+                        'New Task',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: AppColors.primary,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            )
-          else if (isCustomerMode)
-            GestureDetector(
-              onTap: () async {
-                final result = await context.push('/add-customer');
-                if (result != null) {
-                  ref
-                      .read(customerScreenProvider.notifier)
-                      .fetchCustomers(refresh: true);
-                }
-              },
-              child: Container(
-                height: 38,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.add_circle_outline,
-                      color: AppColors.primary,
-                      size: 18,
-                    ),
-                    const AppSizeBox.w(4),
-                    AppText(
-                      'Add Customer',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: AppColors.primary,
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else if (!isTeamMode)
-            GestureDetector(
-              onTap: () async {
-                final result = await context.push('/create-task');
-                if (result == true || result != null) {
-                  ref
-                      .read(taskScreenProvider.notifier)
-                      .fetchTasks(refresh: true);
-                }
-              },
-              child: Container(
-                height: 40,
-                width: 130,
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.add_circle_outline,
-                      color: AppColors.primary,
-                    ),
-                    const AppSizeBox.w(4),
-                    AppText(
-                      'New Task',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: AppColors.primary,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          const AppSizeBox.w(8),
+            const AppSizeBox.w(8),
+          ],
         ],
       ),
       body: Column(

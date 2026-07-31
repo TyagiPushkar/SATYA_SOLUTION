@@ -9,6 +9,7 @@ import '../../attendance/screen/monthly_records_screen.dart';
 import '../../auth/provider/auth_provider.dart';
 import '../../task/provider/task_provider.dart';
 import '../../attendance/provider/monthly_records_provider.dart';
+import '../../../core/providers/permission_provider.dart';
 
 class MainScreenTabNotifier extends Notifier<int> {
   @override
@@ -35,6 +36,7 @@ class MainScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(permissionProvider);
     final currentIndex = ref.watch(mainScreenTabProvider);
     final userAsync = ref.watch(currentUserProvider);
     final user = userAsync.value;
@@ -53,6 +55,11 @@ class MainScreen extends ConsumerWidget {
 
     return Scaffold(
       drawer: const AppDrawer(),
+      onDrawerChanged: (isOpen) {
+        if (isOpen) {
+          ref.invalidate(permissionProvider);
+        }
+      },
       body: IndexedStack(index: currentIndex, children: _screens),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(

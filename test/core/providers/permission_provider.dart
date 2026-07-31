@@ -4,7 +4,7 @@ import '../api/api_endpoints.dart';
 import '../models/permission_model.dart';
 
 final permissionProvider = FutureProvider<UserPermission>((ref) async {
-  final apiService = ApiService(); // Or ref.watch if ApiService is provided
+  final apiService = ref.read(apiServiceProvider);
   try {
     final response = await apiService.get(ApiEndpoints.getPermissions);
     final responseData = response.data;
