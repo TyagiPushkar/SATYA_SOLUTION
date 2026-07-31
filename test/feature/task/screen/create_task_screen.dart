@@ -74,7 +74,12 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
     final payload = <String, dynamic>{};
     for (final field in fields) {
       if (field.name == 'customerId' || field.name == 'taskType') {
-        payload[field.name] = _formValues[field.name]?.toString();
+        final val = _formValues[field.name];
+        if (val is int) {
+          payload[field.name] = val;
+        } else if (val != null) {
+          payload[field.name] = int.tryParse(val.toString()) ?? val;
+        }
       } else {
         final text = _controllers[field.name]?.text ?? '';
         if (field.name == 'payment_type') {
@@ -221,7 +226,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
         next.when(
           data: (_) {
             AppSnackbar.show(context, 'Task created successfully!');
-            ref.invalidate(taskScreenProvider);
+            ref.read(taskScreenProvider.notifier).fetchTasks(refresh: true);
             context.pop(true);
             ref.read(taskCreationProvider.notifier).reset();
           },
@@ -307,12 +312,22 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
               if (types.isEmpty) {
                 return const SizedBox.shrink();
               }
-              final typeNames = types.map((t) => t.name).toList();
 
-              if (_formValues[field.name] == null ||
-                  !typeNames.contains(_formValues[field.name])) {
-                _formValues[field.name] = typeNames.first;
+              final selectedId = _formValues[field.name] is int
+                  ? _formValues[field.name] as int
+                  : int.tryParse(_formValues[field.name]?.toString() ?? '');
+
+              final isValidSelection =
+                  selectedId != null && types.any((t) => t.id == selectedId);
+
+              if (!isValidSelection) {
+                _formValues[field.name] = types.first.id;
               }
+
+              final currentValue = _formValues[field.name] is int
+                  ? _formValues[field.name] as int
+                  : (int.tryParse(_formValues[field.name]?.toString() ?? '') ??
+                      types.first.id);
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -330,8 +345,8 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                       color: AppColors.white,
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _formValues[field.name],
+                      child: DropdownButton<int>(
+                        value: currentValue,
                         isExpanded: true,
                         hint: AppText(
                           field.placeholder.isNotEmpty
@@ -339,10 +354,10 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                               : 'Select task type',
                           color: AppColors.grey,
                         ),
-                        items: typeNames.map((type) {
-                          return DropdownMenuItem(
-                            value: type,
-                            child: AppText(type),
+                        items: types.map((type) {
+                          return DropdownMenuItem<int>(
+                            value: type.id,
+                            child: AppText(type.name),
                           );
                         }).toList(),
                         onChanged: (val) {

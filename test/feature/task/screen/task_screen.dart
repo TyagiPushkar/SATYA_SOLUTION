@@ -10,6 +10,9 @@ import '../provider/customers_list_provider.dart';
 import '../../auth/provider/employee_list_provider.dart';
 import '../../auth/model/employee_model.dart';
 import '../../auth/provider/employee_form_fields_provider.dart';
+import '../../../core/widgets/app_card_skeleton.dart';
+import '../../home/screen/main_screen.dart';
+import 'package:shimmer/shimmer.dart';
 
 class TaskScreen extends ConsumerStatefulWidget {
   final bool showBackButton;
@@ -74,9 +77,10 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
     return Container(
       color: AppColors.primary,
       width: double.infinity,
-      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
+      padding: const EdgeInsets.only(bottom: 12),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         child: Row(
           children: tabs.map((tab) {
             final isSelected = _selectedStatusFilter == tab;
@@ -103,7 +107,7 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
                     _selectedStatusFilter = tab;
                   });
                 },
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(10),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(
@@ -114,7 +118,7 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
                     color: isSelected
                         ? activeBgColor
                         : Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(8),
                     border: isSelected
                         ? null
                         : Border.all(
@@ -273,6 +277,21 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<int>(mainScreenTabProvider, (previous, next) {
+      if (next == 1) {
+        final currentTitle = ref.read(taskTitleProvider);
+        if (currentTitle == 'Customer Tasks') {
+          ref
+              .read(customerScreenProvider.notifier)
+              .fetchCustomers(refresh: true);
+        } else if (currentTitle == 'All Employees') {
+          ref.read(employeeListProvider.notifier).fetchEmployees(refresh: true);
+        } else {
+          ref.read(taskScreenProvider.notifier).fetchTasks(refresh: true);
+        }
+      }
+    });
+
     final taskState = ref.watch(taskScreenProvider);
     final customerState = ref.watch(customerScreenProvider);
     final employeeState = ref.watch(employeeListProvider);
@@ -280,6 +299,7 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
 
     final isCustomerMode = title == 'Customer Tasks';
     final isEmployeeMode = title == 'All Employees';
+    final isTeamMode = title == 'Team Task' || title == 'Team Tasks';
 
     final filteredTasks = _getFilteredTasks(taskState.tasks);
 
@@ -333,7 +353,14 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
             )
           else if (isCustomerMode)
             GestureDetector(
-              onTap: () => context.push('/add-customer'),
+              onTap: () async {
+                final result = await context.push('/add-customer');
+                if (result != null) {
+                  ref
+                      .read(customerScreenProvider.notifier)
+                      .fetchCustomers(refresh: true);
+                }
+              },
               child: Container(
                 height: 38,
                 padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -360,9 +387,16 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
                 ),
               ),
             )
-          else
+          else if (!isTeamMode)
             GestureDetector(
-              onTap: () => context.push('/create-task'),
+              onTap: () async {
+                final result = await context.push('/create-task');
+                if (result == true || result != null) {
+                  ref
+                      .read(taskScreenProvider.notifier)
+                      .fetchTasks(refresh: true);
+                }
+              },
               child: Container(
                 height: 40,
                 width: 130,
@@ -459,7 +493,7 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
           const AppSizeBox.h(16),
           Expanded(
             child: isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const AppCardSkeleton()
                 : RefreshIndicator(
                     onRefresh: () async {
                       if (isEmployeeMode) {
@@ -525,11 +559,7 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
                                     padding: EdgeInsets.symmetric(
                                       vertical: 16.0,
                                     ),
-                                    child: Center(
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    ),
+                                    child: AppCardSkeleton.single(),
                                   );
                                 }
                                 return const AppSizeBox.h(32);
@@ -966,144 +996,144 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
     final statusColor = _getStatusColor(status);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: EdgeInsets.only(top: 8),
       decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.grey.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
       ),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Positioned(
-            left: 0,
-            top: 0,
-            bottom: 0,
-            child: Container(
-              width: 8,
-              decoration: const BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  bottomLeft: Radius.circular(12),
-                ),
-              ),
+          // Header
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
             ),
-          ),
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () {
-                setState(() {
-                  if (isExpanded) {
-                    _expandedTaskSlugs.remove(slug);
-                  } else {
-                    _expandedTaskSlugs.add(slug);
-                  }
-                });
-              },
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20.0, 16.0, 16.0, 16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        if (isExpanded) {
+                          _expandedTaskSlugs.remove(slug);
+                        } else {
+                          _expandedTaskSlugs.add(slug);
+                        }
+                      });
+                      context.push('/task-details', extra: rawTask);
+                    },
+                    behavior: HitTestBehavior.opaque,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              context.push('/task-details', extra: rawTask);
-                            },
-                            behavior: HitTestBehavior.opaque,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Flexible(
-                                  child: AppText(
-                                    title,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    color: AppColors.primary,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const AppSizeBox.w(6),
-                                const BlinkingTouchIcon(
-                                  color: Color(0xFF00BFA5),
-                                  size: 20,
-                                ),
-                              ],
-                            ),
+                        Flexible(
+                          child: AppText(
+                            title,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: AppColors.primary,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const AppSizeBox.w(8),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: statusColor,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: AppText(
-                                status,
-                                color: AppColors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const AppSizeBox.h(4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: AppText(
-                                'Priority: ${_capitalize(priority)}',
-                                color: AppColors.primary,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
+                        const AppSizeBox.w(6),
+                        const BlinkingTouchIcon(
+                          color: Color(0xFF00BFA5),
+                          size: 20,
                         ),
                       ],
                     ),
-                    const AppSizeBox.h(12),
-                    _buildDetailRow('Description', description),
-                    _buildDetailRow('Type', type),
-                    _buildDetailRow('Follow Up', followUp),
-                    _buildDetailRow('Created by', createdBy),
-                    if (isExpanded) ...[
-                      const AppSizeBox.h(4),
-                      _buildDetailRow('Start', startDateTime),
-                      _buildDetailRow('Expire', expireDateTime),
-                      _buildDetailRow('Completed', completedAt),
-                      _buildDetailRow('Address', address),
-                      _buildDetailRow('Total Time Taken', totalTimeTaken),
-                      _buildDetailRow('Repeat', repeatText),
-                      _buildDetailRow('Create time', createTime),
-                    ],
+                  ),
+                ),
+                const AppSizeBox.w(8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: statusColor,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                      child: AppText(
+                        status,
+                        color: AppColors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const AppSizeBox.h(4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                      child: AppText(
+                        'Priority: ${_capitalize(priority)}',
+                        color: AppColors.primary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                 ),
-              ),
+              ],
             ),
+          ),
+          // Body
+          Stack(
+            children: [
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () {
+                    setState(() {
+                      if (isExpanded) {
+                        _expandedTaskSlugs.remove(slug);
+                      } else {
+                        _expandedTaskSlugs.add(slug);
+                      }
+                    });
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20.0, 16.0, 16.0, 16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildDetailRow('Description', description),
+                        _buildDetailRow('Type', type),
+                        _buildDetailRow('Follow Up', followUp),
+                        _buildDetailRow('Created by', createdBy),
+                        if (isExpanded) ...[
+                          const AppSizeBox.h(4),
+                          _buildDetailRow('Start', startDateTime),
+                          _buildDetailRow('Expire', expireDateTime),
+                          _buildDetailRow('Completed', completedAt),
+                          _buildDetailRow('Address', address),
+                          _buildDetailRow('Total Time Taken', totalTimeTaken),
+                          _buildDetailRow('Repeat', repeatText),
+                          _buildDetailRow('Create time', createTime),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1145,9 +1175,28 @@ class _DynamicCreateEmployeeBottomSheetState
       ),
       child: fieldsAsync.when(
         data: (fields) => _buildFormContent(fields),
-        loading: () => const SizedBox(
+        loading: () => SizedBox(
           height: 250,
-          child: Center(child: CircularProgressIndicator()),
+          child: Shimmer.fromColors(
+            baseColor: Colors.grey.shade300,
+            highlightColor: Colors.grey.shade100,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: List.generate(
+                  3,
+                  (index) => Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
         error: (err, stack) => SizedBox(
           height: 200,

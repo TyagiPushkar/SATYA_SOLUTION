@@ -93,8 +93,9 @@ class EmployeeListNotifier extends Notifier<EmployeeListState> {
         currentPage = data['currentPage'] ?? pageToLoad;
       }
 
-      final newEmployees =
-          refresh ? loadedList : [...state.employees, ...loadedList];
+      final newEmployees = refresh
+          ? loadedList
+          : [...state.employees, ...loadedList];
 
       state = state.copyWith(
         employees: newEmployees,
@@ -137,22 +138,24 @@ class EmployeeListNotifier extends Notifier<EmployeeListState> {
 
       final emailVal = data['email']?.toString().trim();
       final nameVal = data['name']?.toString().trim() ?? 'employee';
-      final cleanName =
-          nameVal.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase();
+      final cleanName = nameVal
+          .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+          .toLowerCase();
       final validEmail =
           (emailVal != null && emailVal.contains('@') && emailVal.contains('.'))
-              ? emailVal
-              : '${cleanName.isNotEmpty ? cleanName : 'employee'}${DateTime.now().millisecondsSinceEpoch}@company.com';
+          ? emailVal
+          : '${cleanName.isNotEmpty ? cleanName : 'employee'}${DateTime.now().millisecondsSinceEpoch}@company.com';
 
       final payload = <String, dynamic>{
         "name": nameVal,
-        "identity":
-            data['identity']?.toString() ?? nameVal,
+        "identity": data['identity']?.toString() ?? nameVal,
         "email": validEmail,
         "password": data['password']?.toString() ?? r'Pa$$w0rd!',
         "mobile": data['mobile']?.toString() ?? '9999999999',
         "address":
-            data['address']?.toString() ?? data['location']?.toString() ?? 'Lucknow',
+            data['address']?.toString() ??
+            data['location']?.toString() ??
+            'Lucknow',
         "branch_id": int.tryParse(data['branch_id']?.toString() ?? '1') ?? 1,
         "region_id": int.tryParse(data['region_id']?.toString() ?? '1') ?? 1,
         "state_id": int.tryParse(data['state_id']?.toString() ?? '1') ?? 1,
@@ -165,17 +168,22 @@ class EmployeeListNotifier extends Notifier<EmployeeListState> {
         "designations": data['designations']?.toString() ?? "Staff",
         "emp_type": data['emp_type']?.toString() ?? "Full Time",
         "license": data['license']?.toString() ?? "Full Access License",
-        "date_of_birth": data['date_of_birth']?.toString() ??
+        "date_of_birth":
+            data['date_of_birth']?.toString() ??
             DateTime.now().toIso8601String(),
-        "date_of_joining": data['date_of_joining']?.toString() ??
+        "date_of_joining":
+            data['date_of_joining']?.toString() ??
             DateTime.now().toIso8601String(),
-        "location": data['location']?.toString() ??
+        "location":
+            data['location']?.toString() ??
             data['home_location']?.toString() ??
             "Noida, UP, India",
-        "work_location": data['work_location']?.toString() ??
+        "work_location":
+            data['work_location']?.toString() ??
             data['home_location']?.toString() ??
             "Noida, UP, India",
-        "last_location": data['last_location']?.toString() ??
+        "last_location":
+            data['last_location']?.toString() ??
             data['home_location']?.toString() ??
             "Noida, UP, India",
         "work_shift":
@@ -234,5 +242,5 @@ class EmployeeListNotifier extends Notifier<EmployeeListState> {
 
 final employeeListProvider =
     NotifierProvider<EmployeeListNotifier, EmployeeListState>(() {
-  return EmployeeListNotifier();
-});
+      return EmployeeListNotifier();
+    });

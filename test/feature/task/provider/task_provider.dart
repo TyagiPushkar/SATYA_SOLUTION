@@ -81,6 +81,8 @@ class TaskScreenNotifier extends Notifier<TaskScreenState> {
       String endpoint = ApiEndpoints.getTasks;
       if (currentTitle == 'Customer Task' || currentTitle == 'Customer Tasks') {
         endpoint = ApiEndpoints.customerTasks;
+      } else if (currentTitle == 'Team Task' || currentTitle == 'Team Tasks') {
+        endpoint = ApiEndpoints.teamTasks;
       }
 
       final response = await apiService.get(
@@ -95,11 +97,25 @@ class TaskScreenNotifier extends Notifier<TaskScreenState> {
         responseMap = {};
       }
 
-      if (responseMap['success'] == true) {
-        final data = responseMap['data'] ?? {};
-        final List<dynamic> loadedTasks = data['tasks'] ?? [];
-        final int totalPages = data['totalPages'] ?? 1;
-        final int currentPage = data['currentPage'] ?? pageToLoad;
+      final isSuccess = responseMap['success'] == true ||
+          responseMap['statusCode'] == 200 ||
+          response.statusCode == 200;
+
+      if (isSuccess) {
+        final rawData = responseMap['data'];
+        List<dynamic> loadedTasks = [];
+        int totalPages = 1;
+        int currentPage = pageToLoad;
+
+        if (rawData is List) {
+          loadedTasks = rawData;
+          totalPages = 1;
+          currentPage = 1;
+        } else if (rawData is Map) {
+          loadedTasks = rawData['tasks'] is List ? rawData['tasks'] : [];
+          totalPages = rawData['totalPages'] ?? 1;
+          currentPage = rawData['currentPage'] ?? pageToLoad;
+        }
 
         final newTasksList = refresh
             ? loadedTasks
@@ -181,7 +197,12 @@ class TaskDetailsNotifier extends Notifier<TaskDetailsState> {
         responseMap = Map<String, dynamic>.from(responseData);
       }
 
-      if (responseMap['success'] == true && responseMap['data'] != null) {
+      final isSuccess = (responseMap['success'] == true ||
+              responseMap['statusCode'] == 200 ||
+              response.statusCode == 200) &&
+          responseMap['data'] != null;
+
+      if (isSuccess) {
         final data = Map<String, dynamic>.from(responseMap['data']);
         state = state.copyWith(
           taskData: data,

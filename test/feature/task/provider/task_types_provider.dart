@@ -12,7 +12,9 @@ class TaskTypeModel {
 
   factory TaskTypeModel.fromJson(Map<String, dynamic> json) {
     return TaskTypeModel(
-      id: json['id'] as int? ?? 0,
+      id: json['id'] is int
+          ? json['id'] as int
+          : (int.tryParse(json['id']?.toString() ?? '') ?? 0),
       name: json['name'] as String? ?? '',
     );
   }

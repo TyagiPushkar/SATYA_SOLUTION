@@ -671,7 +671,7 @@ class HomeContent extends ConsumerWidget {
                 onTap: () {
                   ref.read(taskTitleProvider.notifier).setTitle('All Task');
                   Navigator.pop(context);
-                  context.push('/task-page');
+                  ref.read(mainScreenTabProvider.notifier).setTab(1);
                 },
               ),
             if (perms.task.teamTask.hasAnyAccess)
@@ -681,7 +681,7 @@ class HomeContent extends ConsumerWidget {
                 onTap: () {
                   ref.read(taskTitleProvider.notifier).setTitle('Team Task');
                   Navigator.pop(context);
-                  context.push('/task-page');
+                  ref.read(mainScreenTabProvider.notifier).setTab(1);
                 },
               ),
             if (perms.task.taskCustomer.hasAnyAccess)
@@ -693,7 +693,7 @@ class HomeContent extends ConsumerWidget {
                       .read(taskTitleProvider.notifier)
                       .setTitle('Customer Task');
                   Navigator.pop(context);
-                  context.push('/task-page');
+                  ref.read(mainScreenTabProvider.notifier).setTab(1);
                 },
               ),
             if (perms.task.deletedTasks.hasAnyAccess)
@@ -705,7 +705,7 @@ class HomeContent extends ConsumerWidget {
                       .read(taskTitleProvider.notifier)
                       .setTitle('Deleted Tasks');
                   Navigator.pop(context);
-                  context.push('/task-page');
+                  ref.read(mainScreenTabProvider.notifier).setTab(1);
                 },
               ),
             if (perms.task.onboardingTask.hasAnyAccess)
@@ -717,7 +717,7 @@ class HomeContent extends ConsumerWidget {
                       .read(taskTitleProvider.notifier)
                       .setTitle('Onboarding Task');
                   Navigator.pop(context);
-                  context.push('/task-page');
+                  ref.read(mainScreenTabProvider.notifier).setTab(1);
                 },
               ),
           ],
@@ -727,7 +727,8 @@ class HomeContent extends ConsumerWidget {
     }
 
     // Employee
-    if (perms.employee.myTeam.hasAnyAccess || perms.employee.allEmployee.hasAnyAccess) {
+    if (perms.employee.myTeam.hasAnyAccess ||
+        perms.employee.allEmployee.hasAnyAccess) {
       items.add(
         ExpansionTile(
           leading: const Icon(
@@ -752,8 +753,11 @@ class HomeContent extends ConsumerWidget {
                 contentPadding: const EdgeInsets.only(left: 72),
                 title: AppText('All Employee', fontWeight: FontWeight.w500),
                 onTap: () {
+                  ref
+                      .read(taskTitleProvider.notifier)
+                      .setTitle('All Employees');
                   Navigator.pop(context);
-                  context.push('/all-employee');
+                  ref.read(mainScreenTabProvider.notifier).setTab(1);
                 },
               ),
           ],
@@ -764,75 +768,94 @@ class HomeContent extends ConsumerWidget {
 
     // New Fields
     if (perms.role.hasAnyAccess) {
-      items.add(ListTile(
-        leading: const Icon(Icons.security, color: AppColors.primary),
-        title: AppText('Role', fontWeight: FontWeight.bold),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => Navigator.pop(context),
-      ));
+      items.add(
+        ListTile(
+          leading: const Icon(Icons.security, color: AppColors.primary),
+          title: AppText('Role', fontWeight: FontWeight.bold),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.pop(context),
+        ),
+      );
       items.add(const Divider(height: 1));
     }
     if (perms.admin.hasAnyAccess) {
-      items.add(ListTile(
-        leading: const Icon(Icons.admin_panel_settings, color: AppColors.primary),
-        title: AppText('Admin', fontWeight: FontWeight.bold),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => Navigator.pop(context),
-      ));
+      items.add(
+        ListTile(
+          leading: const Icon(
+            Icons.admin_panel_settings,
+            color: AppColors.primary,
+          ),
+          title: AppText('Admin', fontWeight: FontWeight.bold),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.pop(context),
+        ),
+      );
       items.add(const Divider(height: 1));
     }
     if (perms.leave.hasAnyAccess) {
-      items.add(ListTile(
-        leading: const Icon(Icons.time_to_leave, color: AppColors.primary),
-        title: AppText('Leave', fontWeight: FontWeight.bold),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => Navigator.pop(context),
-      ));
+      items.add(
+        ListTile(
+          leading: const Icon(Icons.time_to_leave, color: AppColors.primary),
+          title: AppText('Leave', fontWeight: FontWeight.bold),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.pop(context),
+        ),
+      );
       items.add(const Divider(height: 1));
     }
     if (perms.branch.hasAnyAccess) {
-      items.add(ListTile(
-        leading: const Icon(Icons.domain, color: AppColors.primary),
-        title: AppText('Branch', fontWeight: FontWeight.bold),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => Navigator.pop(context),
-      ));
+      items.add(
+        ListTile(
+          leading: const Icon(Icons.domain, color: AppColors.primary),
+          title: AppText('Branch', fontWeight: FontWeight.bold),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.pop(context),
+        ),
+      );
       items.add(const Divider(height: 1));
     }
     if (perms.holiday.hasAnyAccess) {
-      items.add(ListTile(
-        leading: const Icon(Icons.beach_access, color: AppColors.primary),
-        title: AppText('Holiday', fontWeight: FontWeight.bold),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => Navigator.pop(context),
-      ));
+      items.add(
+        ListTile(
+          leading: const Icon(Icons.beach_access, color: AppColors.primary),
+          title: AppText('Holiday', fontWeight: FontWeight.bold),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.pop(context),
+        ),
+      );
       items.add(const Divider(height: 1));
     }
     if (perms.reports.hasAnyAccess) {
-      items.add(ListTile(
-        leading: const Icon(Icons.bar_chart, color: AppColors.primary),
-        title: AppText('Reports', fontWeight: FontWeight.bold),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => Navigator.pop(context),
-      ));
+      items.add(
+        ListTile(
+          leading: const Icon(Icons.bar_chart, color: AppColors.primary),
+          title: AppText('Reports', fontWeight: FontWeight.bold),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.pop(context),
+        ),
+      );
       items.add(const Divider(height: 1));
     }
     if (perms.department.hasAnyAccess) {
-      items.add(ListTile(
-        leading: const Icon(Icons.business, color: AppColors.primary),
-        title: AppText('Department', fontWeight: FontWeight.bold),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => Navigator.pop(context),
-      ));
+      items.add(
+        ListTile(
+          leading: const Icon(Icons.business, color: AppColors.primary),
+          title: AppText('Department', fontWeight: FontWeight.bold),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.pop(context),
+        ),
+      );
       items.add(const Divider(height: 1));
     }
     if (perms.designation.hasAnyAccess) {
-      items.add(ListTile(
-        leading: const Icon(Icons.badge, color: AppColors.primary),
-        title: AppText('Designation', fontWeight: FontWeight.bold),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => Navigator.pop(context),
-      ));
+      items.add(
+        ListTile(
+          leading: const Icon(Icons.badge, color: AppColors.primary),
+          title: AppText('Designation', fontWeight: FontWeight.bold),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.pop(context),
+        ),
+      );
       items.add(const Divider(height: 1));
     }
 

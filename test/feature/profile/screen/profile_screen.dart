@@ -349,7 +349,7 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-// Custom Clipper for the concave arch bottom header
+
 class HeaderArcClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {

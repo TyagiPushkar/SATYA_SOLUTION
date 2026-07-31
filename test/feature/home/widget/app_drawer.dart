@@ -6,6 +6,8 @@ import '../../../core/widgets/app_text.dart';
 import '../../auth/provider/auth_provider.dart';
 import '../../attendance/provider/sync_provider.dart';
 
+import '../screen/main_screen.dart';
+
 class AppDrawer extends ConsumerWidget {
   const AppDrawer({super.key});
 
@@ -53,6 +55,7 @@ class AppDrawer extends ConsumerWidget {
             ),
             onTap: () {
               Navigator.pop(context);
+              ref.read(mainScreenTabProvider.notifier).setTab(0);
             },
           ),
           ListTile(
@@ -67,6 +70,7 @@ class AppDrawer extends ConsumerWidget {
             ),
             onTap: () {
               Navigator.pop(context);
+              ref.read(mainScreenTabProvider.notifier).setTab(2);
             },
           ),
           ListTile(
@@ -78,6 +82,7 @@ class AppDrawer extends ConsumerWidget {
             ),
             onTap: () {
               Navigator.pop(context);
+              ref.read(mainScreenTabProvider.notifier).setTab(1);
             },
           ),
           ListTile(
@@ -89,6 +94,7 @@ class AppDrawer extends ConsumerWidget {
             ),
             onTap: () {
               Navigator.pop(context);
+              ref.read(mainScreenTabProvider.notifier).setTab(3);
             },
           ),
           const Spacer(),

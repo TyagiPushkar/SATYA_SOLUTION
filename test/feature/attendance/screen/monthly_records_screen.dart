@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_text.dart';
 import '../../../core/widgets/app_sizebox.dart';
 import '../../../core/widgets/custom_app_bar.dart';
+import '../../home/screen/main_screen.dart';
 import '../provider/monthly_records_provider.dart';
 
 class MonthlyRecordsScreen extends ConsumerStatefulWidget {
@@ -25,6 +26,12 @@ class _MonthlyRecordsScreenState extends ConsumerState<MonthlyRecordsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<int>(mainScreenTabProvider, (previous, next) {
+      if (next == 2) {
+        ref.read(monthlyRecordsProvider.notifier).refreshData();
+      }
+    });
+
     final state = ref.watch(monthlyRecordsProvider);
 
     return Scaffold(

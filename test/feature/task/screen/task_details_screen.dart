@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/custom_app_bar.dart';
+import '../../../core/widgets/app_card_skeleton.dart';
 import '../provider/task_provider.dart';
 
 class TaskDetailsScreen extends ConsumerStatefulWidget {
@@ -119,16 +120,13 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
           onPressed: () => context.pop(),
         ),
       ),
-      body: Column(
-        children: [
-          if (taskDetailsState.isLoading)
-            const LinearProgressIndicator(
-              color: AppColors.primary,
-              minHeight: 3,
-            ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
+      body: taskDetailsState.isLoading
+          ? const AppCardSkeleton()
+          : Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

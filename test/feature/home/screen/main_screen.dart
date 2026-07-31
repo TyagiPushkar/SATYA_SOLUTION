@@ -8,6 +8,7 @@ import '../../task/screen/task_screen.dart';
 import '../../attendance/screen/monthly_records_screen.dart';
 import '../../auth/provider/auth_provider.dart';
 import '../../task/provider/task_provider.dart';
+import '../../attendance/provider/monthly_records_provider.dart';
 
 class MainScreenTabNotifier extends Notifier<int> {
   @override
@@ -73,6 +74,8 @@ class MainScreen extends ConsumerWidget {
               } else {
                 ref.read(taskTitleProvider.notifier).setTitle('All Task');
               }
+            } else if (index == 2) {
+              ref.read(monthlyRecordsProvider.notifier).refreshData();
             }
             ref.read(mainScreenTabProvider.notifier).setTab(index);
           },

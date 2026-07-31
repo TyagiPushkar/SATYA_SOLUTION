@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mind_map/mind_map.dart';
+import '../../../core/widgets/app_card_skeleton.dart';
 import '../model/team_employee_model.dart';
 import '../provider/team_provider.dart';
 
@@ -80,7 +81,7 @@ class MyTeamScreen extends ConsumerWidget {
             ),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const AppCardSkeleton(),
         error: (error, stackTrace) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24.0),
