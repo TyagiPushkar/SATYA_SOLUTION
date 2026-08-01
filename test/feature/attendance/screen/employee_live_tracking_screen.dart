@@ -136,25 +136,52 @@ class _EmployeeLiveTrackingScreenState
     final str = raw.toString().trim();
     if (str.isEmpty) return fallback;
 
+    try {
+      DateTime? dt;
+      if (str.contains('T') || str.contains('-') || str.contains('Z')) {
+        String isoStr = str;
+        if (str.contains('T') && !str.endsWith('Z') && !str.contains('+')) {
+          final timePart = str.split('T').last;
+          if (!timePart.contains('+') && !timePart.contains('-')) {
+            isoStr = '${str}Z';
+          }
+        }
+        dt = DateTime.tryParse(isoStr)?.toLocal();
+      } else {
+        dt = DateTime.tryParse(str)?.toLocal() ??
+            DateTime.tryParse('2026-01-01 $str');
+      }
+
+      if (dt != null) {
+        int hour12 = dt.hour % 12;
+        if (hour12 == 0) hour12 = 12;
+        final h = hour12.toString().padLeft(2, '0');
+        final m = dt.minute.toString().padLeft(2, '0');
+        final s = dt.second.toString().padLeft(2, '0');
+        final period = dt.hour >= 12 ? 'PM' : 'AM';
+        return '$h:$m:$s $period';
+      }
+    } catch (_) {}
+
     if (str.contains('T')) {
       final parts = str.split('T');
-      if (parts.length > 1) {
-        final timePart = parts[1];
-        if (timePart.length >= 8) {
-          return timePart.substring(0, 8);
+      if (parts.length > 1 && parts[1].length >= 8) {
+        final timePart = parts[1].substring(0, 8);
+        final timeDt = DateTime.tryParse('2026-01-01 $timePart');
+        if (timeDt != null) {
+          int hour12 = timeDt.hour % 12;
+          if (hour12 == 0) hour12 = 12;
+          final h = hour12.toString().padLeft(2, '0');
+          final m = timeDt.minute.toString().padLeft(2, '0');
+          final s = timeDt.second.toString().padLeft(2, '0');
+          final period = timeDt.hour >= 12 ? 'PM' : 'AM';
+          return '$h:$m:$s $period';
         }
+        return timePart;
       }
     }
 
-    try {
-      final dt = DateTime.parse(str);
-      final h = dt.hour.toString().padLeft(2, '0');
-      final m = dt.minute.toString().padLeft(2, '0');
-      final s = dt.second.toString().padLeft(2, '0');
-      return '$h:$m:$s';
-    } catch (_) {
-      return str;
-    }
+    return str;
   }
 
   Future<List<LatLng>> _fetchRoadRoute(List<LatLng> points) async {
@@ -609,18 +636,31 @@ class _EmployeeLiveTrackingScreenState
       final y = now.year;
       final mo = now.month.toString().padLeft(2, '0');
       final d = now.day.toString().padLeft(2, '0');
-      final h = now.hour.toString().padLeft(2, '0');
+      int hour12 = now.hour % 12;
+      if (hour12 == 0) hour12 = 12;
+      final h = hour12.toString().padLeft(2, '0');
       final mi = now.minute.toString().padLeft(2, '0');
-      return '$y-$mo-$d $h:$mi';
+      final period = now.hour >= 12 ? 'PM' : 'AM';
+      return '$y-$mo-$d $h:$mi $period';
     }
     try {
-      final dt = DateTime.parse(raw).toLocal();
+      String isoStr = raw;
+      if (raw.contains('T') && !raw.endsWith('Z') && !raw.contains('+')) {
+        final timePart = raw.split('T').last;
+        if (!timePart.contains('+') && !timePart.contains('-')) {
+          isoStr = '${raw}Z';
+        }
+      }
+      final dt = DateTime.parse(isoStr).toLocal();
       final y = dt.year;
       final mo = dt.month.toString().padLeft(2, '0');
       final d = dt.day.toString().padLeft(2, '0');
-      final h = dt.hour.toString().padLeft(2, '0');
+      int hour12 = dt.hour % 12;
+      if (hour12 == 0) hour12 = 12;
+      final h = hour12.toString().padLeft(2, '0');
       final mi = dt.minute.toString().padLeft(2, '0');
-      return '$y-$mo-$d $h:$mi';
+      final period = dt.hour >= 12 ? 'PM' : 'AM';
+      return '$y-$mo-$d $h:$mi $period';
     } catch (_) {
       return raw.length > 16 ? raw.substring(0, 16) : raw;
     }

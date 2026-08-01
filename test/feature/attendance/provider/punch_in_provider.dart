@@ -4,6 +4,7 @@ import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../core/api/api_service.dart';
 import '../../../core/exception/app_exception.dart';
@@ -66,34 +67,65 @@ class PunchInNotifier extends Notifier<PunchInState> {
     }
   }
 
-  Future<Position?> _getCurrentPosition() async {
+  Future<Position> _getLocationOrThrow() async {
     try {
-      final lastPos = await Geolocator.getLastKnownPosition();
-      if (lastPos != null) {
-        return lastPos;
-      }
-
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        return null;
-      }
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-
-      if (permission == LocationPermission.whileInUse ||
-          permission == LocationPermission.always) {
-        return await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.medium,
-            timeLimit: Duration(milliseconds: 1000),
-          ),
-        );
+      if (await Permission.notification.isDenied) {
+        await Permission.notification.request();
       }
     } catch (_) {}
-    return null;
+
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      throw AppException(
+          'Location service (GPS) is turned off. Please turn on Location services to punch in.');
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        throw AppException(
+            'Location permission denied. Location access is required to punch in.');
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      throw AppException(
+          'Location permission permanently denied. Please allow location permission in app settings to punch in.');
+    }
+
+    if (permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always) {
+      try {
+        final pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+            timeLimit: Duration(seconds: 3),
+          ),
+        );
+        return pos;
+      } catch (_) {}
+
+      try {
+        final lastPos = await Geolocator.getLastKnownPosition();
+        if (lastPos != null) {
+          return lastPos;
+        }
+      } catch (_) {}
+    }
+
+    return Position(
+      latitude: 26.8467,
+      longitude: 80.9462,
+      timestamp: DateTime.now(),
+      accuracy: 0,
+      altitude: 0,
+      altitudeAccuracy: 0,
+      heading: 0,
+      headingAccuracy: 0,
+      speed: 0,
+      speedAccuracy: 0,
+    );
   }
 
   Future<String> _getDeviceInfo() async {
@@ -148,12 +180,21 @@ class PunchInNotifier extends Notifier<PunchInState> {
     state = state.copyWith(isLoading: true, error: null);
     final apiService = ref.read(apiServiceProvider);
 
-    final pos = await _getCurrentPosition().timeout(
-      const Duration(milliseconds: 1000),
-      onTimeout: () => null,
-    );
-    final lat = pos?.latitude ?? 26.8467;
-    final lng = pos?.longitude ?? 80.9462;
+    Position pos;
+    try {
+      pos = await _getLocationOrThrow();
+    } on AppException catch (e) {
+      state = state.copyWith(isLoading: false, error: e.message);
+      return 'ERROR: ${e.message}';
+    } catch (e) {
+      final msg =
+          'Location error: ${e.toString().replaceAll('Exception:', '').trim()}';
+      state = state.copyWith(isLoading: false, error: msg);
+      return 'ERROR: $msg';
+    }
+
+    final lat = pos.latitude;
+    final lng = pos.longitude;
 
     final ipAddress = await _getIpAddress().timeout(
       const Duration(milliseconds: 500),

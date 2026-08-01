@@ -29,7 +29,15 @@ class UnsyncedPunchRecord {
 
   DateTime get dateTime {
     try {
-      return DateTime.parse(timestamp);
+      final str = timestamp;
+      String isoStr = str;
+      if (str.contains('T') && !str.endsWith('Z') && !str.contains('+')) {
+        final timePart = str.split('T').last;
+        if (!timePart.contains('+') && !timePart.contains('-')) {
+          isoStr = '${str}Z';
+        }
+      }
+      return DateTime.parse(isoStr).toLocal();
     } catch (_) {
       return DateTime.now();
     }

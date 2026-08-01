@@ -165,7 +165,7 @@ class HomeContent extends ConsumerWidget {
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                      );
+                      ); 
                     }
                   },
                   borderRadius: const BorderRadius.vertical(
