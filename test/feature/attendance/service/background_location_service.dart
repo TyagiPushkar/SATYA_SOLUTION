@@ -78,7 +78,7 @@ Future<bool> onIosBackground(ServiceInstance service) async {
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   DartPluginRegistrant.ensureInitialized();
 
   final socketUrl = ApiEndpoints.socketUrl;

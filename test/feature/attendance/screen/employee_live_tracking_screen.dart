@@ -278,41 +278,22 @@ class _EmployeeLiveTrackingScreenState
             }
           }
         }
-        final List<LatLng> fallbackPoints = [
-          const LatLng(28.5283, 77.2785),
-          const LatLng(28.5305, 77.2798),
-          const LatLng(28.5325, 77.2810),
-          const LatLng(28.5338, 77.2824),
-          const LatLng(28.5342, 77.2835),
-        ];
 
-        final List<LatLng> activePoints = fetchedPoints.isNotEmpty
-            ? fetchedPoints
-            : fallbackPoints;
-        final List<LatLng> activeStoppages = fetchedPoints.isNotEmpty
-            ? stoppagePoints
-            : [fallbackPoints[1], fallbackPoints[3]];
-
-        // Build per-point timestamps and speeds
-        final List<String> activeTimestamps = fetchedPoints.isNotEmpty
-            ? timestamps
-            : List.generate(5, (i) => ''); // fallback: empty timestamps
-        final List<double> activeSpeeds = fetchedPoints.isNotEmpty
-            ? speeds
-            : List.generate(5, (i) => 2.0); // fallback: 2 km/h
-
-        // Calculate speeds from consecutive points if API returns 0
         if (fetchedPoints.isNotEmpty) {
+          final List<LatLng> activePoints = fetchedPoints;
+          final List<LatLng> activeStoppages = stoppagePoints;
+          final List<String> activeTimestamps = timestamps;
+          final List<double> activeSpeeds = speeds;
+
+          // Calculate speeds from consecutive points if API returns 0
           for (int i = 1; i < fetchedPoints.length; i++) {
             if (activeSpeeds[i] == 0.0) {
-              // Calculate distance between consecutive points (Haversine)
               final dist = const Distance().as(
                 LengthUnit.Meter,
                 fetchedPoints[i - 1],
                 fetchedPoints[i],
               );
-              // Estimate time diff: use timestamps if available
-              double timeDiffHours = 0.01; // 36 seconds default
+              double timeDiffHours = 0.01;
               if (activeTimestamps[i].isNotEmpty &&
                   activeTimestamps[i - 1].isNotEmpty) {
                 try {
@@ -326,99 +307,88 @@ class _EmployeeLiveTrackingScreenState
               activeSpeeds[i] = speedKmh.clamp(0.0, 200.0);
             }
           }
+
+          setState(() {
+            _rawVisitPoints = activePoints;
+            _fieldVisitRoutePoints = activePoints;
+            _stoppageRoutePoints = activeStoppages;
+            _locationTimestamps = activeTimestamps;
+            _locationSpeeds = activeSpeeds;
+            _isLoadingVisits = false;
+            // Reset playback to start
+            _playbackCurrentIndex = 0;
+            _playbackProgress = 0.0;
+            _playbackMarkerPosition = activePoints.first;
+            _playbackCurrentTimestamp = activeTimestamps.first;
+            _playbackCurrentSpeed = activeSpeeds.first;
+          });
+          _mapController.move(activePoints.first, 17.8);
+
+          // Fetch road-snapped route points using OSRM
+          _fetchRoadRoute(activePoints)
+              .then((roadPoints) {
+                if (mounted && roadPoints.isNotEmpty) {
+                  final List<LatLng> fullRoadRoute = [];
+                  if (activePoints.first.latitude != roadPoints.first.latitude ||
+                      activePoints.first.longitude !=
+                          roadPoints.first.longitude) {
+                    fullRoadRoute.add(activePoints.first);
+                  }
+                  fullRoadRoute.addAll(roadPoints);
+                  if (activePoints.last.latitude != roadPoints.last.latitude ||
+                      activePoints.last.longitude != roadPoints.last.longitude) {
+                    fullRoadRoute.add(activePoints.last);
+                  }
+                  setState(() {
+                    _fieldVisitRoutePoints = fullRoadRoute;
+                  });
+                }
+              })
+              .catchError((e) {
+                debugPrint("Road route error: $e");
+              });
+        } else {
+          // No location points found for this date
+          setState(() {
+            _rawVisitPoints = [];
+            _fieldVisitRoutePoints = [];
+            _stoppageRoutePoints = [];
+            _locationTimestamps = [];
+            _locationSpeeds = [];
+            _isLoadingVisits = false;
+            _playbackCurrentIndex = 0;
+            _playbackProgress = 0.0;
+            _playbackMarkerPosition = null;
+            _playbackCurrentTimestamp = '';
+            _playbackCurrentSpeed = 0.0;
+          });
         }
-
-        setState(() {
-          _rawVisitPoints = activePoints;
-          _fieldVisitRoutePoints = activePoints;
-          _stoppageRoutePoints = activeStoppages;
-          _locationTimestamps = activeTimestamps;
-          _locationSpeeds = activeSpeeds;
-          _isLoadingVisits = false;
-          // Reset playback to start
-          _playbackCurrentIndex = 0;
-          _playbackProgress = 0.0;
-          _playbackMarkerPosition = activePoints.isNotEmpty
-              ? activePoints.first
-              : null;
-          _playbackCurrentTimestamp = activeTimestamps.isNotEmpty
-              ? activeTimestamps.first
-              : '';
-          _playbackCurrentSpeed = activeSpeeds.isNotEmpty
-              ? activeSpeeds.first
-              : 0.0;
-        });
-        _mapController.move(activePoints.first, 17.8);
-
-        // Fetch road-snapped route points using OSRM
-        _fetchRoadRoute(activePoints)
-            .then((roadPoints) {
-              if (mounted && roadPoints.isNotEmpty) {
-                final List<LatLng> fullRoadRoute = [];
-
-                if (activePoints.first.latitude != roadPoints.first.latitude ||
-                    activePoints.first.longitude !=
-                        roadPoints.first.longitude) {
-                  fullRoadRoute.add(activePoints.first);
-                }
-                fullRoadRoute.addAll(roadPoints);
-                if (activePoints.last.latitude != roadPoints.last.latitude ||
-                    activePoints.last.longitude != roadPoints.last.longitude) {
-                  fullRoadRoute.add(activePoints.last);
-                }
-
-                setState(() {
-                  _fieldVisitRoutePoints = fullRoadRoute;
-                });
-              }
-            })
-            .catchError((e) {
-              debugPrint("Road route error: $e");
-            });
         return;
       } else {
         debugPrint(
-          "Field visits status code ${responseData?['statusCode']}: ${responseData?['message']}",
+          "Field visits response error: status code ${responseData?['statusCode']}: ${responseData?['message']}",
         );
       }
     } catch (e) {
       debugPrint("Error fetching field visits: $e");
     }
 
-    final List<LatLng> fallbackPoints = [
-      const LatLng(28.5283, 77.2785),
-      const LatLng(28.5305, 77.2798),
-      const LatLng(28.5325, 77.2810),
-      const LatLng(28.5338, 77.2824),
-      const LatLng(28.5342, 77.2835),
-    ];
-
+    // Clear all data on error / 404 / failure response
     setState(() {
-      _rawVisitPoints = fallbackPoints;
-      _fieldVisitRoutePoints = fallbackPoints;
-      _stoppageRoutePoints = [fallbackPoints[1], fallbackPoints[3]];
+      _attendanceData = null;
+      _visitsData = [];
+      _rawVisitPoints = [];
+      _fieldVisitRoutePoints = [];
+      _stoppageRoutePoints = [];
+      _locationTimestamps = [];
+      _locationSpeeds = [];
       _isLoadingVisits = false;
+      _playbackCurrentIndex = 0;
+      _playbackProgress = 0.0;
+      _playbackMarkerPosition = null;
+      _playbackCurrentTimestamp = '';
+      _playbackCurrentSpeed = 0.0;
     });
-    _mapController.move(fallbackPoints.first, 17.8);
-    _fetchRoadRoute(fallbackPoints)
-        .then((roadPoints) {
-          if (mounted && roadPoints.isNotEmpty) {
-            final List<LatLng> fullRoadRoute = [];
-            if (fallbackPoints.first.latitude != roadPoints.first.latitude ||
-                fallbackPoints.first.longitude != roadPoints.first.longitude) {
-              fullRoadRoute.add(fallbackPoints.first);
-            }
-            fullRoadRoute.addAll(roadPoints);
-            if (fallbackPoints.last.latitude != roadPoints.last.latitude ||
-                fallbackPoints.last.longitude != roadPoints.last.longitude) {
-              fullRoadRoute.add(fallbackPoints.last);
-            }
-            setState(() {
-              _fieldVisitRoutePoints = fullRoadRoute;
-            });
-          }
-        })
-        .catchError((_) {});
   }
 
   List<Marker> _buildRouteMarkers() {
@@ -2146,12 +2116,8 @@ class _EmployeeLiveTrackingScreenState
   // Sub-Header Stats Row matching Trackwick (Today date pill + Completed count + Distance Km)
   Widget _buildSubHeaderStatsRow() {
     final distanceKm = _calculateDistanceInKm(_fieldVisitRoutePoints);
-    final distanceStr = distanceKm > 0
-        ? '${distanceKm.toStringAsFixed(2)}Km'
-        : '1.45Km';
-    final completedCount = _visitsData.isNotEmpty
-        ? '${_visitsData.length}'
-        : '1';
+    final distanceStr = '${distanceKm.toStringAsFixed(2)}Km';
+    final completedCount = '${_visitsData.length}';
 
     // Format selected date label
     final now = DateTime.now();
@@ -2262,6 +2228,34 @@ class _EmployeeLiveTrackingScreenState
 
   // Vertical Timeline List matching exact API data dynamically
   Widget _buildVerticalTimelineList() {
+    if (_attendanceData == null && _visitsData.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
+        alignment: Alignment.center,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: const [
+            Icon(
+              Icons.event_busy_outlined,
+              size: 44,
+              color: Colors.grey,
+            ),
+            SizedBox(height: 12),
+            Text(
+              'No attendance record found for this date',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
     List<Widget> items = [];
 
     final punchInOffice =
@@ -2269,7 +2263,7 @@ class _EmployeeLiveTrackingScreenState
     final punchOutOffice =
         _attendanceData?['punchOutOffice'] as Map<String, dynamic>?;
 
-    String punchInAddress = 'Vedanta Tech3, Okhla Phase 1, New Delhi';
+    String punchInAddress = 'Location not available';
     if (punchInOffice != null) {
       final name = punchInOffice['name']?.toString() ?? '';
       final addr = punchInOffice['address']?.toString() ?? '';
@@ -2280,9 +2274,15 @@ class _EmployeeLiveTrackingScreenState
       } else if (name.isNotEmpty) {
         punchInAddress = name;
       }
+    } else if (_attendanceData?['clock_in_address'] != null ||
+        _attendanceData?['punch_in_address'] != null) {
+      punchInAddress =
+          _attendanceData?['clock_in_address']?.toString() ??
+          _attendanceData?['punch_in_address']?.toString() ??
+          'Location not available';
     }
 
-    String punchOutAddress = 'Vedanta Tech3, Okhla Phase 1, New Delhi';
+    String punchOutAddress = 'Location not available';
     if (punchOutOffice != null) {
       final name = punchOutOffice['name']?.toString() ?? '';
       final addr = punchOutOffice['address']?.toString() ?? '';
@@ -2293,29 +2293,24 @@ class _EmployeeLiveTrackingScreenState
       } else if (name.isNotEmpty) {
         punchOutAddress = name;
       }
+    } else if (_attendanceData?['clock_out_address'] != null ||
+        _attendanceData?['punch_out_address'] != null) {
+      punchOutAddress =
+          _attendanceData?['clock_out_address']?.toString() ??
+          _attendanceData?['punch_out_address']?.toString() ??
+          'Location not available';
     }
 
-    final clockInTime = _formatTimeOnly(
-      _attendanceData?['clock_in'],
-      fallback: '08:20:19',
-    );
-    final clockOutTime = _formatTimeOnly(
-      _attendanceData?['clock_out'],
-      fallback: '09:18:01',
-    );
+    final clockInRaw = _attendanceData?['clock_in'];
+    final clockInTime = clockInRaw != null
+        ? _formatTimeOnly(clockInRaw, fallback: '')
+        : '';
+    final clockOutRaw = _attendanceData?['clock_out'];
+    final clockOutTime = clockOutRaw != null
+        ? _formatTimeOnly(clockOutRaw, fallback: '')
+        : '';
 
-    // 1. Punch In
-    items.add(
-      _buildTrackwickPunchInItem(
-        title: 'Punch In',
-        time: clockInTime,
-        address: punchInAddress,
-        isFirst: true,
-        isLast: false,
-      ),
-    );
-
-    // 2. Extract locations from visits
+    // Extract locations from visits
     List<Map<String, dynamic>> locationsList = [];
     for (final visit in _visitsData) {
       if (visit is Map && visit['locations'] is List) {
@@ -2327,90 +2322,80 @@ class _EmployeeLiveTrackingScreenState
       }
     }
 
-    // Default fallback from API payload if _visitsData is empty
-    if (locationsList.isEmpty) {
-      locationsList = [
-        {
-          "time": 0,
-          "addedAt": "2026-07-29T08:20:31.372Z",
-          "latitude": 28.518909,
-          "longitude": 77.2833571,
-        },
-        {
-          "time": 9,
-          "addedAt": "2026-07-29T08:29:59.775Z",
-          "latitude": 28.518909,
-          "longitude": 77.2833571,
-        },
-        {
-          "time": 2,
-          "addedAt": "2026-07-29T08:32:50.610Z",
-          "latitude": 28.5202165,
-          "longitude": 77.2844728,
-        },
-        {
-          "time": 6,
-          "addedAt": "2026-07-29T08:38:53.976Z",
-          "latitude": 28.5206844,
-          "longitude": 77.2846856,
-        },
-        {
-          "time": 15,
-          "addedAt": "2026-07-29T08:54:23.895Z",
-          "latitude": 28.5206535,
-          "longitude": 77.2852117,
-        },
-        {
-          "time": 6,
-          "addedAt": "2026-07-29T09:00:41.738Z",
-          "latitude": 28.5206221,
-          "longitude": 77.284631,
-        },
-        {
-          "time": 1,
-          "addedAt": "2026-07-29T09:01:47.850Z",
-          "latitude": 28.5191987,
-          "longitude": 77.2846941,
-        },
-        {
-          "time": 0,
-          "addedAt": "2026-07-29T09:03:59.167Z",
-          "latitude": 28.519491,
-          "longitude": 77.2845128,
-        },
-        {
-          "time": 0,
-          "addedAt": "2026-07-29T09:05:42.411Z",
-          "latitude": 28.5189225,
-          "longitude": 77.283353,
-        },
-      ];
+    final bool hasPunchIn = clockInRaw != null || punchInOffice != null;
+    final bool hasPunchOut = clockOutRaw != null || punchOutOffice != null;
+    final bool hasLocations = locationsList.isNotEmpty;
+
+    if (!hasPunchIn && !hasPunchOut && !hasLocations) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
+        alignment: Alignment.center,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: const [
+            Icon(
+              Icons.event_busy_outlined,
+              size: 44,
+              color: Colors.grey,
+            ),
+            SizedBox(height: 12),
+            Text(
+              'No attendance record found for this date',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
     }
 
+    // 1. Punch In
+    if (hasPunchIn) {
+      items.add(
+        _buildTrackwickPunchInItem(
+          title: 'Punch In',
+          time: clockInTime,
+          address: punchInAddress,
+          isFirst: true,
+          isLast: !hasLocations && !hasPunchOut,
+        ),
+      );
+    }
+
+    // 2. Locations / Stoppages / Travelled items
     for (int i = 0; i < locationsList.length; i++) {
       final loc = locationsList[i];
-      final addedAtStr = loc['addedAt']?.toString();
-      final timeFormatted = _formatTimeOnly(addedAtStr, fallback: '08:20:31');
+      final addedAtStr = loc['addedAt']?.toString() ??
+          loc['createdAt']?.toString() ??
+          loc['timestamp']?.toString();
+      final timeFormatted = _formatTimeOnly(addedAtStr, fallback: '');
       final int stoppageMin = int.tryParse(loc['time']?.toString() ?? '0') ?? 0;
       final double? lat = double.tryParse(loc['latitude']?.toString() ?? '');
       final double? lng = double.tryParse(loc['longitude']?.toString() ?? '');
 
       final locAddrStr = (lat != null && lng != null)
-          ? 'Okhla Phase 1, New Delhi (${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)})'
-          : 'Okhla Phase 1, New Delhi';
+          ? '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}'
+          : 'Location not available';
+
+      final isLastItem = (i == locationsList.length - 1) && !hasPunchOut;
 
       if (loc['customer'] != null && loc['customer'] is Map) {
         final cust = loc['customer'] as Map<String, dynamic>;
         items.add(
           _buildTrackwickTaskItem(
-            taskId: 'TASK-${cust['id'] ?? '1001'}',
+            taskId: 'TASK-${cust['id'] ?? ''}',
             timeRange: timeFormatted,
             duration: '',
             personName: cust['name']?.toString() ?? 'Customer',
             taskType: 'Field Visit',
             address: locAddrStr,
-            isFirst: false,
-            isLast: false,
+            isFirst: !hasPunchIn && i == 0,
+            isLast: isLastItem,
           ),
         );
       } else if (stoppageMin > 0) {
@@ -2419,35 +2404,39 @@ class _EmployeeLiveTrackingScreenState
           _buildTrackwickStoppageItem(
             title: 'Stoppage of 00:$stopMinStr',
             address: locAddrStr,
-            isFirst: false,
-            isLast: false,
+            isFirst: !hasPunchIn && i == 0,
+            isLast: isLastItem,
           ),
         );
       } else {
         items.add(
           _buildTrackwickTravelledItem(
-            title: 'Travelled ($timeFormatted)',
+            title: timeFormatted.isNotEmpty
+                ? 'Travelled ($timeFormatted)'
+                : 'Travelled',
             distance: '',
             timeRange: timeFormatted,
             duration: '',
-            isFirst: false,
-            isLast: false,
+            isFirst: !hasPunchIn && i == 0,
+            isLast: isLastItem,
           ),
         );
       }
     }
 
     // 3. Punch Out
-    items.add(
-      _buildTrackwickPunchOutItem(
-        title: 'Punch Out',
-        time: clockOutTime,
-        duration: '(00:58)',
-        address: punchOutAddress,
-        isFirst: false,
-        isLast: true,
-      ),
-    );
+    if (hasPunchOut) {
+      items.add(
+        _buildTrackwickPunchOutItem(
+          title: 'Punch Out',
+          time: clockOutTime,
+          duration: '',
+          address: punchOutAddress,
+          isFirst: !hasPunchIn && !hasLocations,
+          isLast: true,
+        ),
+      );
+    }
 
     return Column(children: items);
   }

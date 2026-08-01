@@ -186,21 +186,21 @@ class HomeContent extends ConsumerWidget {
                     child: Row(
                       children: [
                         // Left Circle Icon (Fingerprint)
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withValues(alpha: 0.2),
-                          ),
-                          child: Icon(
-                            (punchState.isPunchedIn == true)
-                                ? Icons.fingerprint_rounded
-                                : Icons.fingerprint,
-                            color: Colors.white,
-                            size: 26,
-                          ),
-                        ),
+                        // Container(
+                        //   width: 44,
+                        //   height: 44,
+                        //   decoration: BoxDecoration(
+                        //     shape: BoxShape.circle,
+                        //     color: Colors.white.withValues(alpha: 0.2),
+                        //   ),
+                        //   child: Icon(
+                        //     (punchState.isPunchedIn == true)
+                        //         ? Icons.fingerprint_rounded
+                        //         : Icons.fingerprint,
+                        //     color: Colors.white,
+                        //     size: 26,
+                        //   ),
+                        // ),
                         const SizedBox(width: 14),
                         // Middle Info: Punch in / data -
                         Expanded(
@@ -224,21 +224,36 @@ class HomeContent extends ConsumerWidget {
                             ],
                           ),
                         ),
-                        // Right Arrow Icon Circle ( -> )
                         Container(
-                          width: 36,
-                          height: 36,
+                          width: 44,
+                          height: 44,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.white.withValues(alpha: 0.2),
-                            border: Border.all(color: Colors.white, width: 1.5),
                           ),
-                          child: const Icon(
-                            Icons.arrow_forward,
+                          child: Icon(
+                            (punchState.isPunchedIn == true)
+                                ? Icons.fingerprint_rounded
+                                : Icons.fingerprint,
                             color: Colors.white,
-                            size: 18,
+                            size: 26,
                           ),
                         ),
+                        // Right Arrow Icon Circle ( -> )
+                        // Container(
+                        //   width: 36,
+                        //   height: 36,
+                        //   decoration: BoxDecoration(
+                        //     shape: BoxShape.circle,
+                        //     color: Colors.white.withValues(alpha: 0.2),
+                        //     border: Border.all(color: Colors.white, width: 1.5),
+                        //   ),
+                        //   // child: const Icon(
+                        //   //   Icons.arrow_forward,
+                        //   //   color: Colors.white,
+                        //   //   size: 18,
+                        //   // ),
+                        // ),
                       ],
                     ),
                   ),

@@ -943,6 +943,28 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
     }
     final description = _safeString(task['description'], fallback: 'NA');
 
+    // Name
+    String nameText = 'NA';
+    if (task['name'] is Map) {
+      nameText = _safeString((task['name'] as Map)['name'], fallback: 'NA');
+    } else if (task['name'] != null && _safeString(task['name']).isNotEmpty) {
+      nameText = _safeString(task['name'], fallback: 'NA');
+    } else if (task['assigneeToEmployeeId'] is Map) {
+      nameText = _safeString((task['assigneeToEmployeeId'] as Map)['name'], fallback: 'NA');
+    } else if (task['assignedTo'] is Map) {
+      nameText = _safeString((task['assignedTo'] as Map)['name'], fallback: 'NA');
+    } else if (task['assignedTo'] != null && _safeString(task['assignedTo']).isNotEmpty) {
+      nameText = _safeString(task['assignedTo'], fallback: 'NA');
+    } else if (task['employee'] is Map) {
+      nameText = _safeString((task['employee'] as Map)['name'], fallback: 'NA');
+    } else if (task['employee'] != null && _safeString(task['employee']).isNotEmpty) {
+      nameText = _safeString(task['employee'], fallback: 'NA');
+    } else if (task['user'] is Map) {
+      nameText = _safeString((task['user'] as Map)['name'], fallback: 'NA');
+    } else if (task['user'] != null && _safeString(task['user']).isNotEmpty) {
+      nameText = _safeString(task['user'], fallback: 'NA');
+    }
+
     final priority = _safeString(task['priority'], fallback: 'Normal');
     final status = _safeString(task['status'], fallback: 'Pending');
     final slug = _safeString(task['slug'], fallback: title);
@@ -1151,6 +1173,7 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        _buildDetailRow('Name', nameText),
                         _buildDetailRow('Description', description),
                         _buildDetailRow('Type', type),
                         _buildDetailRow('Follow Up', followUp),
