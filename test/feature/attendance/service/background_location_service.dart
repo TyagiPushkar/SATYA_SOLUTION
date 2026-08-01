@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../../../core/api/api_endpoints.dart';
 import '../../../core/storage/local_storage.dart';
@@ -18,9 +19,11 @@ class BackgroundLocationService {
       androidConfiguration: AndroidConfiguration(
         onStart: onStart,
         autoStart: false,
+        autoStartOnBoot: true,
         isForegroundMode: true,
         initialNotificationTitle: 'Field Visit Tracking Active',
-        initialNotificationContent: 'Streaming location updates in background',
+        initialNotificationContent:
+            'Streaming location updates in background until Punch Out',
         foregroundServiceNotificationId: 888,
         foregroundServiceTypes: [AndroidForegroundType.location],
       ),
@@ -34,6 +37,10 @@ class BackgroundLocationService {
 
   static Future<void> startLocationTracking() async {
     try {
+      if (await Permission.notification.isDenied) {
+        await Permission.notification.request();
+      }
+
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -71,6 +78,7 @@ Future<bool> onIosBackground(ServiceInstance service) async {
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
   WidgetsFlutterBinding.ensureInitialized();
+  
   DartPluginRegistrant.ensureInitialized();
 
   final socketUrl = ApiEndpoints.socketUrl;
@@ -110,7 +118,9 @@ void onStart(ServiceInstance service) async {
         );
         return;
       } catch (e) {
-        print('=== Background Location WebSocket Emit Error: $e -> Fallback Offline Save ===');
+        print(
+          '=== Background Location WebSocket Emit Error: $e -> Fallback Offline Save ===',
+        );
       }
     }
 
@@ -135,7 +145,9 @@ void onStart(ServiceInstance service) async {
         remarks: 'Background Location Update',
       );
       await OfflineSyncService.addPendingRecord(record);
-      print('=== Saved Offline Location Update: lat=$latitude, lng=$longitude, time=$timeInMinutes ===');
+      print(
+        '=== Saved Offline Location Update: lat=$latitude, lng=$longitude, time=$timeInMinutes ===',
+      );
     } catch (e) {
       print('=== Error saving offline location update: $e ===');
     }
@@ -165,7 +177,10 @@ void onStart(ServiceInstance service) async {
         finalLng = pos.longitude;
       } catch (_) {}
 
-      if (finalLat != null && finalLng != null && socket != null && socket.connected) {
+      if (finalLat != null &&
+          finalLng != null &&
+          socket != null &&
+          socket.connected) {
         final durationInSeconds = stationaryStartTime != null
             ? DateTime.now().difference(stationaryStartTime!).inSeconds
             : 0;
@@ -335,9 +350,7 @@ void onStart(ServiceInstance service) async {
           .setExtraHeaders(
             token != null ? {'Authorization': 'Bearer $token'} : {},
           )
-          .setAuth(
-            token != null ? {'token': token} : {},
-          )
+          .setAuth(token != null ? {'token': token} : {})
           .build(),
     );
 
@@ -390,4 +403,3 @@ Future<int> _getEmpId() async {
   } catch (_) {}
   return empId;
 }
-

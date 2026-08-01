@@ -47,7 +47,7 @@ class _CompleteTaskScreenState extends ConsumerState<CompleteTaskScreen> {
     final notifier = ref.read(completeTaskFormStateProvider.notifier);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.background,
       appBar: CustomAppBar(
         title: "Complete Task",
         backgroundColor: AppColors.primary,
@@ -109,7 +109,7 @@ class _CompleteTaskScreenState extends ConsumerState<CompleteTaskScreen> {
                             width: 4,
                             height: 22,
                             decoration: BoxDecoration(
-                              color: const Color(0xFF0066D4),
+                              color: AppColors.primary,
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
@@ -168,7 +168,7 @@ class _CompleteTaskScreenState extends ConsumerState<CompleteTaskScreen> {
                               _getTaskId(),
                             ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0066D4),
+                        backgroundColor: AppColors.primary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -322,7 +322,7 @@ class _CompleteTaskScreenState extends ConsumerState<CompleteTaskScreen> {
         color: const Color(0xFFF0F7FF),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: const Color(0xFF0066D4).withValues(alpha: 0.3),
+          color: AppColors.primary.withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -332,14 +332,14 @@ class _CompleteTaskScreenState extends ConsumerState<CompleteTaskScreen> {
             children: [
               const Row(
                 children: [
-                  Icon(Icons.qr_code_2, color: Color(0xFF0066D4), size: 22),
+                  Icon(Icons.qr_code_2, color: AppColors.primary, size: 22),
                   SizedBox(width: 8),
                   Text(
                     'UPI Payment QR Code',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF0066D4),
+                      color: AppColors.primary,
                     ),
                   ),
                 ],
@@ -350,7 +350,7 @@ class _CompleteTaskScreenState extends ConsumerState<CompleteTaskScreen> {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0066D4),
+                  color: AppColors.primary,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -440,13 +440,13 @@ class _CompleteTaskScreenState extends ConsumerState<CompleteTaskScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFF0066D4), width: 1.5),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
         ),
         prefixIcon: isNumber
             ? Icon(
                 name.contains('Phone') ? Icons.phone : Icons.currency_rupee,
                 size: 18,
-                color: const Color(0xFF0066D4),
+                color: AppColors.primary,
               )
             : null,
       ),
@@ -499,7 +499,7 @@ class _CompleteTaskScreenState extends ConsumerState<CompleteTaskScreen> {
             ),
             const Icon(
               Icons.keyboard_arrow_down,
-              color: Color(0xFF0066D4),
+              color: AppColors.primary,
               size: 20,
             ),
           ],
@@ -560,14 +560,14 @@ class _CompleteTaskScreenState extends ConsumerState<CompleteTaskScreen> {
                               ? FontWeight.bold
                               : FontWeight.normal,
                           color: isSelected
-                              ? const Color(0xFF0066D4)
+                              ? AppColors.primary
                               : Colors.black87,
                         ),
                       ),
                       trailing: isSelected
                           ? const Icon(
                               Icons.check_circle,
-                              color: Color(0xFF0066D4),
+                              color: AppColors.primary,
                             )
                           : null,
                       onTap: () {
@@ -620,7 +620,7 @@ class _CompleteTaskScreenState extends ConsumerState<CompleteTaskScreen> {
             ),
             const Icon(
               Icons.calendar_today_outlined,
-              color: Color(0xFF0066D4),
+              color: AppColors.primary,
               size: 18,
             ),
           ],
@@ -663,7 +663,7 @@ class _CompleteTaskScreenState extends ConsumerState<CompleteTaskScreen> {
             suffixIcon: IconButton(
               icon: const Icon(
                 Icons.add_a_photo_outlined,
-                color: Color(0xFF0066D4),
+                color: AppColors.primary,
                 size: 20,
               ),
               onPressed: () => CompleteTaskHelper.pickImage(context, ref, name),
@@ -704,7 +704,7 @@ class _CompleteTaskScreenState extends ConsumerState<CompleteTaskScreen> {
         suffixIcon: IconButton(
           icon: const Icon(
             Icons.my_location,
-            color: Color(0xFF0066D4),
+            color: AppColors.primary,
             size: 20,
           ),
           onPressed: () =>

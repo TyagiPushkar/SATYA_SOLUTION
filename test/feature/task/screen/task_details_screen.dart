@@ -106,7 +106,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.background,
       appBar: CustomAppBar(
         title: "Task Details",
         backgroundColor: AppColors.primary,
@@ -140,7 +140,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                             width: 4,
                             height: 22,
                             decoration: BoxDecoration(
-                              color: const Color(0xFF0066D4),
+                              color: AppColors.primary,
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
@@ -177,7 +177,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                             ),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0066D4),
+                            backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
                             elevation: 1,
                             padding: const EdgeInsets.symmetric(
@@ -232,7 +232,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                                       width: 32,
                                       height: 32,
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF0066D4),
+                                        color: AppColors.primary,
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: const Icon(
@@ -292,7 +292,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                           width: 4,
                           height: 22,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF0066D4),
+                            color: AppColors.primary,
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -310,7 +310,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                           _isCustomerDetailsExpanded
                               ? Icons.keyboard_arrow_up
                               : Icons.keyboard_arrow_down,
-                          color: const Color(0xFF0066D4),
+                          color: AppColors.primary,
                           size: 24,
                         ),
                       ],
@@ -572,7 +572,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                         width: 4,
                         height: 22,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0066D4),
+                          color: AppColors.primary,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -746,25 +746,25 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                 height: 32,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF0066D4), width: 2),
+                  border: Border.all(color: AppColors.primary, width: 2),
                 ),
                 child: const Icon(
                   Icons.location_on,
-                  color: Color(0xFF0066D4),
+                  color: AppColors.primary,
                   size: 18,
                 ),
               ),
-              Container(width: 2, height: 48, color: const Color(0xFF0066D4)),
+              Container(width: 2, height: 48, color: AppColors.primary),
               Container(
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF0066D4), width: 2),
+                  border: Border.all(color: AppColors.primary, width: 2),
                 ),
                 child: const Icon(
                   Icons.location_on,
-                  color: Color(0xFF0066D4),
+                  color: AppColors.primary,
                   size: 18,
                 ),
               ),
@@ -788,7 +788,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                   'MKD School, Dhampur, Bijnor, Uttar Pradesh, 246761, India',
                   style: TextStyle(
                     fontSize: 13,
-                    color: Color(0xFF0066D4),
+                    color: AppColors.primary,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -797,7 +797,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                   '2026-07-28 18:24',
                   style: TextStyle(
                     fontSize: 13,
-                    color: Color(0xFF0066D4),
+                    color: AppColors.primary,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -815,7 +815,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                   'MKD School, Dhampur, Bijnor, Uttar Pradesh, 246761, India',
                   style: TextStyle(
                     fontSize: 13,
-                    color: Color(0xFF0066D4),
+                    color: AppColors.primary,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -826,7 +826,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                       '2026-07-28 18:28',
                       style: TextStyle(
                         fontSize: 13,
-                        color: Color(0xFF0066D4),
+                        color: AppColors.primary,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -835,7 +835,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                       '0 Km',
                       style: TextStyle(
                         fontSize: 13,
-                        color: Color(0xFF0066D4),
+                        color: AppColors.primary,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -893,7 +893,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF0066D4),
+                  color: AppColors.primary,
                 ),
               ),
               const SizedBox(height: 6),
@@ -1020,14 +1020,14 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0066D4),
+                        color: AppColors.primary,
                       ),
                     ),
                     const SizedBox(width: 4),
                     const Icon(
                       Icons.open_in_new,
                       size: 16,
-                      color: Color(0xFF0066D4),
+                      color: AppColors.primary,
                     ),
                   ],
                 ),
@@ -1052,14 +1052,14 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0066D4),
+                        color: AppColors.primary,
                       ),
                     ),
                     const SizedBox(width: 4),
                     const Icon(
                       Icons.open_in_new,
                       size: 16,
-                      color: Color(0xFF0066D4),
+                      color: AppColors.primary,
                     ),
                   ],
                 ),
@@ -1088,7 +1088,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: const Color(0xFF0066D4),
+                            color: AppColors.primary,
                             width: 2,
                           ),
                         ),
@@ -1098,14 +1098,14 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF0066D4),
+                            color: AppColors.primary,
                           ),
                         ),
                       ),
                       Container(
                         width: 2,
                         height: 34,
-                        color: const Color(0xFF0066D4),
+                        color: AppColors.primary,
                       ),
                       Container(
                         width: 28,
@@ -1113,7 +1113,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: const Color(0xFF0066D4),
+                            color: AppColors.primary,
                             width: 2,
                           ),
                         ),
@@ -1123,7 +1123,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF0066D4),
+                            color: AppColors.primary,
                           ),
                         ),
                       ),
@@ -1308,7 +1308,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: _selectedTabIndex == 0
-                                    ? const Color(0xFF0066D4)
+                                    ? AppColors.primary
                                     : const Color(0xFF4A5568),
                               ),
                               textAlign: TextAlign.center,
@@ -1317,7 +1317,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                           Container(
                             height: 3,
                             color: _selectedTabIndex == 0
-                                ? const Color(0xFF0066D4)
+                                ? AppColors.primary
                                 : Colors.transparent,
                           ),
                         ],
@@ -1344,7 +1344,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: _selectedTabIndex == 1
-                                    ? const Color(0xFF0066D4)
+                                    ? AppColors.primary
                                     : const Color(0xFF4A5568),
                               ),
                               textAlign: TextAlign.center,
@@ -1353,7 +1353,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                           Container(
                             height: 3,
                             color: _selectedTabIndex == 1
-                                ? const Color(0xFF0066D4)
+                                ? AppColors.primary
                                 : Colors.transparent,
                           ),
                         ],

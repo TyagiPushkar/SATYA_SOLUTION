@@ -106,118 +106,124 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
       context: context,
       builder: (context) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 24,
+          ),
           child: SafeArea(
             child: Consumer(
               builder: (context, ref, child) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: AppText(
-                      'Select Customer',
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: AppText(
+                        'Select Customer',
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const Divider(height: 1),
-                  ref
-                      .watch(customersListProvider)
-                      .when(
-                        data: (customers) {
-                          if (customers.isEmpty) {
-                            return Padding(
-                              padding: const EdgeInsets.all(32.0),
-                              child: Center(
-                                child: AppText(
-                                  'No customers found',
-                                  color: AppColors.grey,
+                    const Divider(height: 1),
+                    ref
+                        .watch(customersListProvider)
+                        .when(
+                          data: (customers) {
+                            if (customers.isEmpty) {
+                              return Padding(
+                                padding: const EdgeInsets.all(32.0),
+                                child: Center(
+                                  child: AppText(
+                                    'No customers found',
+                                    color: AppColors.grey,
+                                  ),
                                 ),
+                              );
+                            }
+                            return ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxHeight:
+                                    MediaQuery.of(context).size.height * 0.4,
+                              ),
+                              child: ListView.builder(
+                                shrinkWrap: true,
+                                itemCount: customers.length,
+                                itemBuilder: (context, index) {
+                                  return ListTile(
+                                    title: AppText(customers[index].name),
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedCustomer =
+                                            customers[index].name;
+                                        _formValues['customerId'] =
+                                            customers[index].id;
+                                        _errors['customerId'] = null;
+                                      });
+                                      Navigator.pop(context);
+                                    },
+                                  );
+                                },
                               ),
                             );
-                          }
-                          return ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxHeight:
-                                  MediaQuery.of(context).size.height * 0.4,
-                            ),
-                            child: ListView.builder(
-                              shrinkWrap: true,
-                              itemCount: customers.length,
-                              itemBuilder: (context, index) {
-                                return ListTile(
-                                  title: AppText(customers[index].name),
-                                  onTap: () {
-                                    setState(() {
-                                      _selectedCustomer = customers[index].name;
-                                      _formValues['customerId'] =
-                                          customers[index].id;
-                                      _errors['customerId'] = null;
-                                    });
-                                    Navigator.pop(context);
-                                  },
-                                );
-                              },
-                            ),
-                          );
-                        },
-                        loading: () => const TimeoutShimmerLoader(
-                          fallbackText: 'No customers found',
-                          timeout: Duration(seconds: 5),
-                        ),
-                        error: (e, st) => Padding(
-                          padding: const EdgeInsets.all(32.0),
-                          child: Center(
-                            child: AppText(
-                              'Failed to load customers: $e',
-                              color: AppColors.grey,
+                          },
+                          loading: () => const TimeoutShimmerLoader(
+                            fallbackText: 'No customers found',
+                            timeout: Duration(seconds: 5),
+                          ),
+                          error: (e, st) => Padding(
+                            padding: const EdgeInsets.all(32.0),
+                            child: Center(
+                              child: AppText(
+                                'Failed to load customers: $e',
+                                color: AppColors.grey,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                  const Divider(height: 1),
-                  InkWell(
-                    onTap: () async {
-                      Navigator.pop(context);
-                      final result = await context.push('/add-customer');
+                    const Divider(height: 1),
+                    InkWell(
+                      onTap: () async {
+                        Navigator.pop(context);
+                        final result = await context.push('/add-customer');
 
-                      if (result != null && result is Map) {
-                        final customerMap = Map<String, String>.from(result);
-                        setState(() {
-                          _selectedCustomer = customerMap['name'];
-                          _formValues['customerId'] = customerMap['id'];
-                          _errors['customerId'] = null;
-                        });
-                        ref.invalidate(customersListProvider);
-                      }
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.add, color: AppColors.primary),
-                          AppSizeBox.w(8),
-                          AppText(
-                            'Add New',
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ],
+                        if (result != null && result is Map) {
+                          final customerMap = Map<String, String>.from(result);
+                          setState(() {
+                            _selectedCustomer = customerMap['name'];
+                            _formValues['customerId'] = customerMap['id'];
+                            _errors['customerId'] = null;
+                          });
+                          ref.invalidate(customersListProvider);
+                        }
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.add, color: AppColors.primary),
+                            AppSizeBox.w(8),
+                            AppText(
+                              'Add New',
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              );
-            },
+                  ],
+                );
+              },
+            ),
           ),
-        ),
-      );
-    },
-  );
-}
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -327,7 +333,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
               final currentValue = _formValues[field.name] is int
                   ? _formValues[field.name] as int
                   : (int.tryParse(_formValues[field.name]?.toString() ?? '') ??
-                      types.first.id);
+                        types.first.id);
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -403,7 +409,6 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
             ),
           );
     }
-
 
     if (field.name == 'customerId') {
       return Column(
@@ -674,7 +679,8 @@ class TimeoutShimmerLoader extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<TimeoutShimmerLoader> createState() => _TimeoutShimmerLoaderState();
+  ConsumerState<TimeoutShimmerLoader> createState() =>
+      _TimeoutShimmerLoaderState();
 }
 
 class _TimeoutShimmerLoaderState extends ConsumerState<TimeoutShimmerLoader> {

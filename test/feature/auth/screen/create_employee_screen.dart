@@ -889,6 +889,7 @@ class _CreateEmployeeScreenState extends ConsumerState<CreateEmployeeScreen> {
 
       return DropdownButtonFormField<String>(
         initialValue: _formData[field.name] as String?,
+        isExpanded: true,
         decoration: InputDecoration(
           labelText: '${field.label}${field.required ? ' *' : ''}',
           labelStyle: TextStyle(color: Colors.grey.shade700, fontSize: 13),
@@ -914,7 +915,12 @@ class _CreateEmployeeScreenState extends ConsumerState<CreateEmployeeScreen> {
         items: field.options.map((opt) {
           return DropdownMenuItem<String>(
             value: opt.value,
-            child: Text(opt.label, style: const TextStyle(fontSize: 14)),
+            child: Text(
+              opt.label,
+              style: const TextStyle(fontSize: 14),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
           );
         }).toList(),
         onChanged: (val) {

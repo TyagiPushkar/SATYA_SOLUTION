@@ -599,7 +599,7 @@ class _EmployeeLiveTrackingScreenState
         return Theme(
           data: ThemeData.light().copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color(0xFF0066D4),
+              primary: AppColors.primary,
               onPrimary: Colors.white,
               surface: Colors.white,
               onSurface: Colors.black87,
@@ -1481,7 +1481,7 @@ class _EmployeeLiveTrackingScreenState
               ),
               child: Slider(
                 value: _playbackProgress.clamp(0.0, 1.0),
-                activeColor: const Color(0xFF0066D4),
+                activeColor: AppColors.primary,
                 inactiveColor: Colors.grey.shade300,
                 onChanged: (val) {
                   _seekPlayback(val);
@@ -1511,7 +1511,7 @@ class _EmployeeLiveTrackingScreenState
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: const Color(0xFF0066D4).withValues(alpha: 0.12),
+                color: AppColors.primary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
@@ -1519,7 +1519,7 @@ class _EmployeeLiveTrackingScreenState
                 style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF0066D4),
+                  color: AppColors.primary,
                 ),
               ),
             ),
@@ -1533,7 +1533,7 @@ class _EmployeeLiveTrackingScreenState
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.speed, size: 13, color: Color(0xFF0066D4)),
+                  const Icon(Icons.speed, size: 13, color: AppColors.primary),
                   const SizedBox(width: 3),
                   Text(
                     '${_playbackCurrentSpeed.toStringAsFixed(2)} KM/H',
@@ -1662,7 +1662,7 @@ class _EmployeeLiveTrackingScreenState
                       const Icon(
                         Icons.calendar_today_outlined,
                         size: 13,
-                        color: Color(0xFF0066D4),
+                        color: AppColors.primary,
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -1796,7 +1796,7 @@ class _EmployeeLiveTrackingScreenState
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: isSelected ? const Color(0xFF0066D4) : Colors.grey,
+              color: isSelected ? AppColors.primary : Colors.grey,
               width: 2,
             ),
           ),
@@ -1806,7 +1806,7 @@ class _EmployeeLiveTrackingScreenState
                     width: 6,
                     height: 6,
                     decoration: const BoxDecoration(
-                      color: Color(0xFF0066D4),
+                      color: AppColors.primary,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -1830,18 +1830,18 @@ class _EmployeeLiveTrackingScreenState
       ),
       child: Row(
         children: const [
-          Icon(Icons.battery_std, size: 18, color: Color(0xFF0066D4)),
+          Icon(Icons.battery_std, size: 18, color: AppColors.primary),
           SizedBox(width: 8),
           Text(
             'Battery Statistics',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF0066D4),
+              color: AppColors.primary,
             ),
           ),
           Spacer(),
-          Icon(Icons.chevron_right, size: 18, color: Color(0xFF0066D4)),
+          Icon(Icons.chevron_right, size: 18, color: AppColors.primary),
         ],
       ),
     );
@@ -1857,7 +1857,7 @@ class _EmployeeLiveTrackingScreenState
           style: TextStyle(fontSize: 11, color: Colors.grey),
         ),
         const SizedBox(height: 10),
-        _buildStatTile(Icons.alt_route, 'Km', '50.93', const Color(0xFF0066D4)),
+        _buildStatTile(Icons.alt_route, 'Km', '50.93', AppColors.primary),
         const SizedBox(height: 8),
         _buildStatTile(
           Icons.speed,
@@ -2019,7 +2019,7 @@ class _EmployeeLiveTrackingScreenState
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: const BoxDecoration(
-        color: Color(0xFF0066D4),
+        color: AppColors.primary,
         borderRadius: BorderRadius.only(topRight: Radius.circular(8)),
       ),
       child: Row(
@@ -2099,7 +2099,7 @@ class _EmployeeLiveTrackingScreenState
             Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: const Color(0xFF0066D4),
+                color: AppColors.primary,
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Icon(icon, size: 15, color: Colors.white),
@@ -2204,7 +2204,7 @@ class _EmployeeLiveTrackingScreenState
                     child: Icon(
                       Icons.calendar_today_outlined,
                       size: 13,
-                      color: Color(0xFF0066D4),
+                      color: AppColors.primary,
                     ),
                   ),
                 ],
@@ -2228,7 +2228,7 @@ class _EmployeeLiveTrackingScreenState
                 style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF0066D4),
+                  color: AppColors.primary,
                 ),
               ),
             ],
@@ -2250,7 +2250,7 @@ class _EmployeeLiveTrackingScreenState
                 style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF0066D4),
+                  color: AppColors.primary,
                 ),
               ),
             ],

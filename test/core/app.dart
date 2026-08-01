@@ -14,10 +14,7 @@ class MyApp extends StatelessWidget {
       builder: (_, child) {
         return MaterialApp.router(
           title: 'SatyaSolution',
-          theme: ThemeData(
-            primarySwatch: Colors.blue,
-            fontFamily: 'Inter', 
-          ),
+          theme: ThemeData(primarySwatch: Colors.blue, fontFamily: 'Inter'),
           routerConfig: AppRouter.router,
           debugShowCheckedModeBanner: false,
         );

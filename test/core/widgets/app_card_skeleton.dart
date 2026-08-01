@@ -15,12 +15,10 @@ class AppCardSkeleton extends StatelessWidget {
     this.physics = const NeverScrollableScrollPhysics(),
   });
 
-  const AppCardSkeleton.single({
-    super.key,
-    this.padding = EdgeInsets.zero,
-  })  : itemCount = 1,
-        shrinkWrap = true,
-        physics = const NeverScrollableScrollPhysics();
+  const AppCardSkeleton.single({super.key, this.padding = EdgeInsets.zero})
+    : itemCount = 1,
+      shrinkWrap = true,
+      physics = const NeverScrollableScrollPhysics();
 
   @override
   Widget build(BuildContext context) {

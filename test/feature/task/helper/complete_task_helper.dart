@@ -10,6 +10,7 @@ import '../../home/screen/main_screen.dart';
 import '../provider/complete_task_fields_provider.dart';
 import '../provider/complete_task_form_state_provider.dart';
 import '../provider/task_provider.dart';
+import '../../../core/theme/app_colors.dart';
 
 class CompleteTaskHelper {
   static final ImagePicker _imagePicker = ImagePicker();
@@ -69,7 +70,7 @@ class CompleteTaskHelper {
                 ListTile(
                   leading: const Icon(
                     Icons.camera_alt,
-                    color: Color(0xFF0066D4),
+                    color: AppColors.primary,
                   ),
                   title: const Text('Take Photo (Camera)'),
                   onTap: () => Navigator.pop(ctx, ImageSource.camera),
@@ -77,7 +78,7 @@ class CompleteTaskHelper {
                 ListTile(
                   leading: const Icon(
                     Icons.photo_library,
-                    color: Color(0xFF0066D4),
+                    color: AppColors.primary,
                   ),
                   title: const Text('Choose from Gallery'),
                   onTap: () => Navigator.pop(ctx, ImageSource.gallery),
@@ -141,7 +142,7 @@ class CompleteTaskHelper {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(primary: Color(0xFF0066D4)),
+            colorScheme: const ColorScheme.light(primary: AppColors.primary),
           ),
           child: child!,
         );
@@ -155,7 +156,7 @@ class CompleteTaskHelper {
         builder: (context, child) {
           return Theme(
             data: Theme.of(context).copyWith(
-              colorScheme: const ColorScheme.light(primary: Color(0xFF0066D4)),
+              colorScheme: const ColorScheme.light(primary: AppColors.primary),
             ),
             child: child!,
           );
