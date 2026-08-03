@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/custom_app_bar.dart';
@@ -127,569 +128,586 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Heading Section with Blue Accent Indicator & Start Task Button
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 4,
-                            height: 22,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Task Details',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF2B2B2B),
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (status.toLowerCase() == 'pending')
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            context.push(
-                              '/complete-task',
-                              extra: widget.taskExtra,
-                            );
-                          },
-                          icon: const Icon(
-                            Icons.add,
-                            size: 18,
-                            color: Colors.white,
-                          ),
-                          label: const Text(
-                            'Start Task',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            elevation: 1,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 8,
-                            ),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade200),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.03),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Stack(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildDetailRow('Title*', title),
-                                _buildDetailRow('Task Type*', taskTypeName),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: _buildDetailRow(
-                                        'Customer',
-                                        customerDisplayName,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      width: 32,
-                                      height: 32,
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primary,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Icon(
-                                        Icons.assignment_ind,
-                                        color: Colors.white,
-                                        size: 22,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          Positioned(
-                            top: 0,
-                            right: 0,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: status.toLowerCase() == 'completed'
-                                    ? const Color(0xFF4CAF50)
-                                    : const Color(0xFFE53935),
-                                borderRadius: const BorderRadius.only(
-                                  bottomLeft: Radius.circular(12),
-                                ),
-                              ),
-                              child: Text(
-                                status,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _isCustomerDetailsExpanded =
-                            !_isCustomerDetailsExpanded;
-                      });
-                    },
-                    behavior: HitTestBehavior.opaque,
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: 4,
-                          height: 22,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Customer Details',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF2B2B2B),
-                          ),
-                        ),
-                        const Spacer(),
-                        Icon(
-                          _isCustomerDetailsExpanded
-                              ? Icons.keyboard_arrow_up
-                              : Icons.keyboard_arrow_down,
-                          color: AppColors.primary,
-                          size: 24,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade200),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.03),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: InkWell(
-                        onTap: () {
-                          setState(() {
-                            _isCustomerDetailsExpanded =
-                                !_isCustomerDetailsExpanded;
-                          });
-                        },
-                        borderRadius: BorderRadius.circular(12),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildDetailRow(
-                                'Mobile',
-                                _safeStr(
-                                  customer['phone'],
-                                  fallback: '9876543210',
-                                ),
-                              ),
-                              _buildDetailRow(
-                                'State Name',
-                                _safeStr(
-                                  customer['state'],
-                                  fallback: 'Uttar Pradesh',
-                                ),
-                              ),
-                              _buildDetailRow(
-                                'Sub-State Name',
-                                _safeStr(
-                                  customer['sub_state'],
-                                  fallback: 'West UP',
-                                ),
-                              ),
-                              if (_isCustomerDetailsExpanded) ...[
-                                _buildDetailRow(
-                                  'Branch Code',
-                                  _safeStr(
-                                    customer['branch_code'],
-                                    fallback: 'BR001',
+                        // Heading Section with Blue Accent Indicator & Start Task Button
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  width: 4,
+                                  height: 22,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    borderRadius: BorderRadius.circular(2),
                                   ),
                                 ),
-                                _buildDetailRow(
-                                  'Branch',
-                                  _safeStr(
-                                    customer['branch'],
-                                    fallback: 'Main Branch',
-                                  ),
-                                ),
-                                _buildDetailRow(
-                                  'Center Name',
-                                  _safeStr(
-                                    customer['center'],
-                                    fallback: 'Center A',
-                                  ),
-                                ),
-                                _buildDetailRow(
-                                  'Center Code',
-                                  _safeStr(
-                                    customer['center_code'],
-                                    fallback: 'C001',
-                                  ),
-                                ),
-                                _buildDetailRow(
-                                  'Loan Type',
-                                  _safeStr(
-                                    customer['loanType'],
-                                    fallback: 'Personal Loan',
-                                  ),
-                                ),
-                                _buildDetailRow(
-                                  'Loan NO.',
-                                  _safeStr(
-                                    customer['loanNo'],
-                                    fallback: 'LN12345678',
-                                  ),
-                                ),
-                                _buildDetailRow(
-                                  'Old Loan No. With Loan Series',
-                                  _safeStr(
-                                    customer['oldLoanNo'],
-                                    fallback: 'OLD-LN-001',
-                                  ),
-                                ),
-                                _buildDetailRow(
-                                  'Cycle',
-                                  _safeStr(customer['cycle'], fallback: '1'),
-                                ),
-                                _buildDetailRow(
-                                  'LoanAmount',
-                                  customer['loanAmount'] != null
-                                      ? '₹ ${customer['loanAmount']}'
-                                      : '₹ 50,000',
-                                ),
-                                _buildDetailRow(
-                                  'O/S Int',
-                                  customer['os_interest'] != null
-                                      ? '₹ ${customer['os_interest']}'
-                                      : '₹ 1,200',
-                                ),
-                                _buildDetailRow(
-                                  'O/S Prin',
-                                  customer['os_principal'] != null
-                                      ? '₹ ${customer['os_principal']}'
-                                      : '₹ 35,000',
-                                ),
-                                _buildDetailRow(
-                                  'PAR',
-                                  _safeStr(customer['par'], fallback: '0'),
-                                ),
-                                _buildDetailRow(
-                                  'ODPrin',
-                                  customer['od_principal'] != null
-                                      ? '₹ ${customer['od_principal']}'
-                                      : '₹ 0',
-                                ),
-                                _buildDetailRow(
-                                  'ODInt',
-                                  customer['od_interest'] != null
-                                      ? '₹ ${customer['od_interest']}'
-                                      : '₹ 0',
-                                ),
-                                _buildDetailRow(
-                                  'TotalDueAmt',
-                                  customer['totalDueAmount'] != null
-                                      ? '₹ ${customer['totalDueAmount']}'
-                                      : '₹ 2,500',
-                                ),
-                                _buildDetailRow(
-                                  'TotalPrinColl',
-                                  customer['total_principal_collectible'] !=
-                                          null
-                                      ? '₹ ${customer['total_principal_collectible']}'
-                                      : '₹ 15,000',
-                                ),
-                                _buildDetailRow(
-                                  'TotalIntColl',
-                                  customer['total_interest_collectible'] != null
-                                      ? '₹ ${customer['total_interest_collectible']}'
-                                      : '₹ 3,000',
-                                ),
-                                _buildDetailRow(
-                                  'IrrRate',
-                                  customer['irrRate'] != null
-                                      ? '${customer['irrRate']}%'
-                                      : '18%',
-                                ),
-                                _buildDetailRow(
-                                  'NoOfInstallment',
-                                  _safeStr(
-                                    customer['noOfInstallment'],
-                                    fallback: '24',
-                                  ),
-                                ),
-                                _buildDetailRow(
-                                  'DPD',
-                                  _safeStr(customer['dpd'], fallback: '0'),
-                                ),
-                                _buildDetailRow(
-                                  'PaidInstNo',
-                                  _safeStr(
-                                    customer['paidInstNo'],
-                                    fallback: '8',
-                                  ),
-                                ),
-                                _buildDetailRow(
-                                  'LoanStatus',
-                                  _safeStr(
-                                    customer['loanStatus'],
-                                    fallback: 'Active',
-                                  ),
-                                ),
-                                _buildDetailRow(
-                                  'SpouseName',
-                                  _safeStr(
-                                    customer['spouseName'],
-                                    fallback: 'Ramesh Sharma',
-                                  ),
-                                ),
-                                _buildDetailRow(
-                                  'InstallmentAmount',
-                                  customer['installmentAmount'] != null
-                                      ? '₹ ${customer['installmentAmount']}'
-                                      : '₹ 2,500',
-                                ),
-                                _buildDetailRow(
-                                  'Pincode',
-                                  _safeStr(
-                                    customer['pincode'],
-                                    fallback: '201301',
-                                  ),
-                                ),
-                                _buildDetailRow(
-                                  'Address',
-                                  _safeStr(
-                                    customer['location'],
-                                    fallback: 'H.No 123, Sector 15, Noida',
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Task Details',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF2B2B2B),
                                   ),
                                 ),
                               ],
+                            ),
+                            if (status.toLowerCase() == 'pending')
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  context.push(
+                                    '/complete-task',
+                                    extra: widget.taskExtra,
+                                  );
+                                },
+                                icon: const Icon(
+                                  Icons.add,
+                                  size: 18,
+                                  color: Colors.white,
+                                ),
+                                label: const Text(
+                                  'Start Task',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                  elevation: 1,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 8,
+                                  ),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.shade200),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.03),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Stack(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      _buildDetailRow('Title*', title),
+                                      _buildDetailRow(
+                                        'Task Type*',
+                                        taskTypeName,
+                                      ),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: _buildDetailRow(
+                                              'Customer',
+                                              customerDisplayName,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            width: 32,
+                                            height: 32,
+                                            decoration: BoxDecoration(
+                                              color: AppColors.primary,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: const Icon(
+                                              Icons.assignment_ind,
+                                              color: Colors.white,
+                                              size: 22,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 0,
+                                  right: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: status.toLowerCase() == 'completed'
+                                          ? const Color(0xFF4CAF50)
+                                          : const Color(0xFFE53935),
+                                      borderRadius: const BorderRadius.only(
+                                        bottomLeft: Radius.circular(12),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      status,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _isCustomerDetailsExpanded =
+                                  !_isCustomerDetailsExpanded;
+                            });
+                          },
+                          behavior: HitTestBehavior.opaque,
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 4,
+                                height: 22,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Customer Details',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF2B2B2B),
+                                ),
+                              ),
+                              const Spacer(),
+                              Icon(
+                                _isCustomerDetailsExpanded
+                                    ? Icons.keyboard_arrow_up
+                                    : Icons.keyboard_arrow_down,
+                                color: AppColors.primary,
+                                size: 24,
+                              ),
                             ],
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                  if (status.toLowerCase() == 'completed') ...[
-                    const SizedBox(height: 20),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
+                        const SizedBox(height: 14),
+
+                        ClipRRect(
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade200),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.03),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: _buildTaskTimeline(),
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Container(
-                        width: 4,
-                        height: 22,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'NPA collection',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF2B2B2B),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  if (status.toLowerCase() == 'completed') ...[
-                    _buildNpaCompletedCard(taskData: taskData),
-                  ] else ...[
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text(
-                              'Payment type(Collection ... ',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Color(0xFF333333),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              Icons.info_outline,
-                              size: 16,
-                              color: Colors.grey.shade700,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF5F5F5),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: TextField(
-                            controller: _npaCollectionController,
-                            decoration: InputDecoration(
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 12,
-                              ),
-                              prefixIcon: Padding(
-                                padding: const EdgeInsets.only(
-                                  left: 12,
-                                  right: 6,
+                          child: Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.shade200),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.03),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
                                 ),
-                                child: Text(
-                                  '₹',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey.shade600,
-                                    fontWeight: FontWeight.w500,
+                              ],
+                            ),
+                            child: InkWell(
+                              onTap: () {
+                                setState(() {
+                                  _isCustomerDetailsExpanded =
+                                      !_isCustomerDetailsExpanded;
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildDetailRow(
+                                      'Mobile',
+                                      _safeStr(
+                                        customer['phone'],
+                                        fallback: '9876543210',
+                                      ),
+                                    ),
+                                    _buildDetailRow(
+                                      'State Name',
+                                      _safeStr(
+                                        customer['state'],
+                                        fallback: 'Uttar Pradesh',
+                                      ),
+                                    ),
+                                    _buildDetailRow(
+                                      'Sub-State Name',
+                                      _safeStr(
+                                        customer['sub_state'],
+                                        fallback: 'West UP',
+                                      ),
+                                    ),
+                                    if (_isCustomerDetailsExpanded) ...[
+                                      _buildDetailRow(
+                                        'Branch Code',
+                                        _safeStr(
+                                          customer['branch_code'],
+                                          fallback: 'BR001',
+                                        ),
+                                      ),
+                                      _buildDetailRow(
+                                        'Branch',
+                                        _safeStr(
+                                          customer['branch'],
+                                          fallback: 'Main Branch',
+                                        ),
+                                      ),
+                                      _buildDetailRow(
+                                        'Center Name',
+                                        _safeStr(
+                                          customer['center'],
+                                          fallback: 'Center A',
+                                        ),
+                                      ),
+                                      _buildDetailRow(
+                                        'Center Code',
+                                        _safeStr(
+                                          customer['center_code'],
+                                          fallback: 'C001',
+                                        ),
+                                      ),
+                                      _buildDetailRow(
+                                        'Loan Type',
+                                        _safeStr(
+                                          customer['loanType'],
+                                          fallback: 'Personal Loan',
+                                        ),
+                                      ),
+                                      _buildDetailRow(
+                                        'Loan NO.',
+                                        _safeStr(
+                                          customer['loanNo'],
+                                          fallback: 'LN12345678',
+                                        ),
+                                      ),
+                                      _buildDetailRow(
+                                        'Old Loan No. With Loan Series',
+                                        _safeStr(
+                                          customer['oldLoanNo'],
+                                          fallback: 'OLD-LN-001',
+                                        ),
+                                      ),
+                                      _buildDetailRow(
+                                        'Cycle',
+                                        _safeStr(
+                                          customer['cycle'],
+                                          fallback: '1',
+                                        ),
+                                      ),
+                                      _buildDetailRow(
+                                        'LoanAmount',
+                                        customer['loanAmount'] != null
+                                            ? '₹ ${customer['loanAmount']}'
+                                            : '₹ 50,000',
+                                      ),
+                                      _buildDetailRow(
+                                        'O/S Int',
+                                        customer['os_interest'] != null
+                                            ? '₹ ${customer['os_interest']}'
+                                            : '₹ 1,200',
+                                      ),
+                                      _buildDetailRow(
+                                        'O/S Prin',
+                                        customer['os_principal'] != null
+                                            ? '₹ ${customer['os_principal']}'
+                                            : '₹ 35,000',
+                                      ),
+                                      _buildDetailRow(
+                                        'PAR',
+                                        _safeStr(
+                                          customer['par'],
+                                          fallback: '0',
+                                        ),
+                                      ),
+                                      _buildDetailRow(
+                                        'ODPrin',
+                                        customer['od_principal'] != null
+                                            ? '₹ ${customer['od_principal']}'
+                                            : '₹ 0',
+                                      ),
+                                      _buildDetailRow(
+                                        'ODInt',
+                                        customer['od_interest'] != null
+                                            ? '₹ ${customer['od_interest']}'
+                                            : '₹ 0',
+                                      ),
+                                      _buildDetailRow(
+                                        'TotalDueAmt',
+                                        customer['totalDueAmount'] != null
+                                            ? '₹ ${customer['totalDueAmount']}'
+                                            : '₹ 2,500',
+                                      ),
+                                      _buildDetailRow(
+                                        'TotalPrinColl',
+                                        customer['total_principal_collectible'] !=
+                                                null
+                                            ? '₹ ${customer['total_principal_collectible']}'
+                                            : '₹ 15,000',
+                                      ),
+                                      _buildDetailRow(
+                                        'TotalIntColl',
+                                        customer['total_interest_collectible'] !=
+                                                null
+                                            ? '₹ ${customer['total_interest_collectible']}'
+                                            : '₹ 3,000',
+                                      ),
+                                      _buildDetailRow(
+                                        'IrrRate',
+                                        customer['irrRate'] != null
+                                            ? '${customer['irrRate']}%'
+                                            : '18%',
+                                      ),
+                                      _buildDetailRow(
+                                        'NoOfInstallment',
+                                        _safeStr(
+                                          customer['noOfInstallment'],
+                                          fallback: '24',
+                                        ),
+                                      ),
+                                      _buildDetailRow(
+                                        'DPD',
+                                        _safeStr(
+                                          customer['dpd'],
+                                          fallback: '0',
+                                        ),
+                                      ),
+                                      _buildDetailRow(
+                                        'PaidInstNo',
+                                        _safeStr(
+                                          customer['paidInstNo'],
+                                          fallback: '8',
+                                        ),
+                                      ),
+                                      _buildDetailRow(
+                                        'LoanStatus',
+                                        _safeStr(
+                                          customer['loanStatus'],
+                                          fallback: 'Active',
+                                        ),
+                                      ),
+                                      _buildDetailRow(
+                                        'SpouseName',
+                                        _safeStr(
+                                          customer['spouseName'],
+                                          fallback: 'Ramesh Sharma',
+                                        ),
+                                      ),
+                                      _buildDetailRow(
+                                        'InstallmentAmount',
+                                        customer['installmentAmount'] != null
+                                            ? '₹ ${customer['installmentAmount']}'
+                                            : '₹ 2,500',
+                                      ),
+                                      _buildDetailRow(
+                                        'Pincode',
+                                        _safeStr(
+                                          customer['pincode'],
+                                          fallback: '201301',
+                                        ),
+                                      ),
+                                      _buildDetailRow(
+                                        'Address',
+                                        _safeStr(
+                                          customer['location'],
+                                          fallback:
+                                              'H.No 123, Sector 15, Noida',
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (status.toLowerCase() == 'completed') ...[
+                          const SizedBox(height: 20),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.grey.shade200),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.03),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: _buildTaskTimeline(),
+                              ),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            Container(
+                              width: 4,
+                              height: 22,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'NPA collection',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF2B2B2B),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        if (status.toLowerCase() == 'completed') ...[
+                          _buildNpaCompletedCard(taskData: taskData),
+                        ] else ...[
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text(
+                                    'Payment type(Collection ... ',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Color(0xFF333333),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Icon(
+                                    Icons.info_outline,
+                                    size: 16,
+                                    color: Colors.grey.shade700,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Container(
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF5F5F5),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: TextField(
+                                  controller: _npaCollectionController,
+                                  decoration: InputDecoration(
+                                    border: InputBorder.none,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 12,
+                                    ),
+                                    prefixIcon: Padding(
+                                      padding: const EdgeInsets.only(
+                                        left: 12,
+                                        right: 6,
+                                      ),
+                                      child: Text(
+                                        '₹',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey.shade600,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                    prefixIconConstraints: const BoxConstraints(
+                                      minWidth: 0,
+                                      minHeight: 0,
+                                    ),
+                                    hintText: 'Enter a default collecti...',
+                                    hintStyle: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade400,
+                                    ),
                                   ),
                                 ),
                               ),
-                              prefixIconConstraints: const BoxConstraints(
-                                minWidth: 0,
-                                minHeight: 0,
-                              ),
-                              hintText: 'Enter a default collecti...',
-                              hintStyle: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade400,
-                              ),
-                            ),
+                            ],
                           ),
+                        ],
+                        const SizedBox(height: 20),
+                        _buildTaskMetaDataCard(
+                          priority: _safeStr(
+                            taskData['priority'],
+                            fallback: 'Medium',
+                          ),
+                          creatorName: _safeStr(
+                            createdBy['name'],
+                            fallback: 'MINA KUMARI',
+                          ),
+                          assigneeName: _safeStr(
+                            assignee['name'],
+                            fallback: 'MINA KUMARI',
+                          ),
+                          startDate: _formatDate(
+                            taskData['startDateTime'],
+                            '2026-08-31 14:56',
+                          ),
+                          endDate: _formatDate(
+                            taskData['endDateTime'],
+                            '2026-09-01 14:56',
+                          ),
+                          createdBy: createdBy,
+                          assignee: assignee,
                         ),
+                        const SizedBox(height: 20),
+                        _buildCustomerFollowUpTabsCard(customer: customer),
                       ],
                     ),
-                  ],
-                  const SizedBox(height: 20),
-                  _buildTaskMetaDataCard(
-                    priority: _safeStr(
-                      taskData['priority'],
-                      fallback: 'Medium',
-                    ),
-                    creatorName: _safeStr(
-                      createdBy['name'],
-                      fallback: 'MINA KUMARI',
-                    ),
-                    assigneeName: _safeStr(
-                      assignee['name'],
-                      fallback: 'MINA KUMARI',
-                    ),
-                    startDate: _formatDate(
-                      taskData['startDateTime'],
-                      '2026-08-31 14:56',
-                    ),
-                    endDate: _formatDate(
-                      taskData['endDateTime'],
-                      '2026-09-01 14:56',
-                    ),
-                    createdBy: createdBy,
-                    assignee: assignee,
                   ),
-                  const SizedBox(height: 20),
-                  _buildCustomerFollowUpTabsCard(customer: customer),
-                ],
-              ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -871,10 +889,24 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildDetailRow(
-                "Client’s House Image.",
-                _safeStr(taskData['houseImage'], fallback: "house_photo.jpg"),
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.primary, width: 2),
+                ),
+                child: Image.network(
+                  taskData['houseImage'] ?? "",
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Icon(Icons.person);
+                  },
+                ),
               ),
+              // _buildDetailRow(
+              //   "Client’s House Image.",
+              //   _safeStr(taskData['houseImage'], fallback: "house_photo.jpg"),
+              // ),
               _buildDetailRow(
                 "Client Relation 1*",
                 _safeStr(taskData['relation'], fallback: "Father"),
@@ -884,7 +916,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                 "Client Mobile No. 1*",
                 _safeStr(taskData['clientPhone'], fallback: "9876543210"),
               ),
-              _buildDetailRow("Client Mobile No. 2", "9123456789"),
+
               const SizedBox(height: 10),
               const Divider(color: Color(0xFFEEEEEE), height: 1),
               const SizedBox(height: 12),
@@ -1102,11 +1134,7 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                           ),
                         ),
                       ),
-                      Container(
-                        width: 2,
-                        height: 34,
-                        color: AppColors.primary,
-                      ),
+                      Container(width: 2, height: 34, color: AppColors.primary),
                       Container(
                         width: 28,
                         height: 28,
@@ -1326,40 +1354,40 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                   ),
 
                   // Follow Up Tab
-                  Expanded(
-                    child: InkWell(
-                      onTap: () {
-                        setState(() {
-                          _selectedTabIndex = 1;
-                        });
-                      },
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 12.0),
-                            child: Text(
-                              'Follow Up',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: _selectedTabIndex == 1
-                                    ? AppColors.primary
-                                    : const Color(0xFF4A5568),
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                          Container(
-                            height: 3,
-                            color: _selectedTabIndex == 1
-                                ? AppColors.primary
-                                : Colors.transparent,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                  // Expanded(
+                  //   child: InkWell(
+                  //     onTap: () {
+                  //       setState(() {
+                  //         _selectedTabIndex = 1;
+                  //       });
+                  //     },
+                  //     child: Column(
+                  //       mainAxisSize: MainAxisSize.min,
+                  //       children: [
+                  //         Padding(
+                  //           padding: const EdgeInsets.symmetric(vertical: 12.0),
+                  //           child: Text(
+                  //             'Follow Up',
+                  //             style: TextStyle(
+                  //               fontSize: 14,
+                  //               fontWeight: FontWeight.bold,
+                  //               color: _selectedTabIndex == 1
+                  //                   ? AppColors.primary
+                  //                   : const Color(0xFF4A5568),
+                  //             ),
+                  //             textAlign: TextAlign.center,
+                  //           ),
+                  //         ),
+                  //         Container(
+                  //           height: 3,
+                  //           color: _selectedTabIndex == 1
+                  //               ? AppColors.primary
+                  //               : Colors.transparent,
+                  //         ),
+                  //       ],
+                  //     ),
+                  //   ),
+                  // ),
                 ],
               ),
             ),
@@ -1367,9 +1395,11 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
             // Tab Content
             Padding(
               padding: const EdgeInsets.all(16.0),
-              child: _selectedTabIndex == 0
-                  ? _buildCustomerTabContent(customer)
-                  : _buildFollowUpTabContent(),
+              child:
+                  //  _selectedTabIndex == 0
+                  //     ?
+                  _buildCustomerTabContent(customer),
+              //: _buildFollowUpTabContent(),
             ),
           ],
         ),

@@ -4,12 +4,9 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dio/dio.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/api/api_endpoints.dart';
-import '../../../core/api/api_service.dart';
-import '../service/gps_filter_service.dart';
+import '../provider/field_visit_provider.dart';
 import 'monthly_records_screen.dart';
 
 enum TimelineItemType { punchIn, punchOut, travelled, stoppage, task }
@@ -43,18 +40,14 @@ class _EmployeeLiveTrackingScreenState
   double _playbackProgress = 0.0;
   bool _isFilterCollapsed = false;
 
-  List<LatLng> _rawVisitPoints = [];
-  List<LatLng> _fieldVisitRoutePoints = [];
-  List<LatLng> _stoppageRoutePoints = [];
-  bool _isLoadingVisits = false;
+  // Data state now lives in fieldVisitProvider (Riverpod)
 
   // Playback animation state
   int _playbackCurrentIndex = 0;
   Timer? _playbackTimer;
   int _playbackSpeedMultiplier = 1; // 1x, 2x, 4x, 8x
   LatLng? _playbackMarkerPosition;
-  List<String> _locationTimestamps = []; // ISO timestamp per route point
-  List<double> _locationSpeeds = []; // km/h per route point
+  // _locationTimestamps and _locationSpeeds now in fieldVisitProvider
   String _playbackCurrentTimestamp = '';
   double _playbackCurrentSpeed = 0.0;
   late DateTime _playbackSelectedDate; // currently selected date for playback
@@ -87,7 +80,7 @@ class _EmployeeLiveTrackingScreenState
     Future.microtask(() {
       final empId = _getEmployeeId();
       final date = _getVisitDate();
-      fetchFieldVisits(empId, date);
+      ref.read(fieldVisitProvider.notifier).fetchFieldVisits(empId, date);
     });
   }
 
@@ -129,8 +122,7 @@ class _EmployeeLiveTrackingScreenState
     return '$y-$m-$d';
   }
 
-  Map<String, dynamic>? _attendanceData;
-  List<dynamic> _visitsData = [];
+  // _attendanceData and _visitsData now in fieldVisitProvider
 
   String _formatTimeOnly(dynamic raw, {required String fallback}) {
     if (raw == null) return fallback;
@@ -149,7 +141,8 @@ class _EmployeeLiveTrackingScreenState
         }
         dt = DateTime.tryParse(isoStr)?.toLocal();
       } else {
-        dt = DateTime.tryParse(str)?.toLocal() ??
+        dt =
+            DateTime.tryParse(str)?.toLocal() ??
             DateTime.tryParse('2026-01-01 $str');
       }
 
@@ -185,244 +178,13 @@ class _EmployeeLiveTrackingScreenState
     return str;
   }
 
-  Future<List<LatLng>> _fetchRoadRoute(List<LatLng> points) async {
-    if (points.length < 2) return points;
-
-    final List<LatLng> roadRoute = [];
-    final dio = Dio();
-
-    // Process in chunks of max 20 points for fast & reliable OSRM road routing
-    const chunkSize = 20;
-    for (int i = 0; i < points.length - 1; i += (chunkSize - 1)) {
-      final end = (i + chunkSize < points.length)
-          ? i + chunkSize
-          : points.length;
-      final chunk = points.sublist(i, end);
-      if (chunk.length < 2) continue;
-
-      final coords = chunk.map((p) => '${p.longitude},${p.latitude}').join(';');
-      final url =
-          'https://router.project-osrm.org/route/v1/driving/$coords?overview=full&geometries=geojson';
-
-      try {
-        final response = await dio.get(
-          url,
-          options: Options(
-            connectTimeout: const Duration(seconds: 5),
-            receiveTimeout: const Duration(seconds: 5),
-          ),
-        );
-
-        if (response.statusCode == 200 &&
-            response.data is Map &&
-            response.data['code'] == 'Ok') {
-          final routes = response.data['routes'] as List<dynamic>?;
-          if (routes != null && routes.isNotEmpty) {
-            final geometry = routes[0]['geometry'] as Map<dynamic, dynamic>?;
-            final coordinates = geometry?['coordinates'] as List<dynamic>?;
-            if (coordinates != null) {
-              for (final coord in coordinates) {
-                if (coord is List && coord.length >= 2) {
-                  final lng = (coord[0] as num).toDouble();
-                  final lat = (coord[1] as num).toDouble();
-                  final newPt = LatLng(lat, lng);
-                  if (roadRoute.isEmpty || roadRoute.last != newPt) {
-                    roadRoute.add(newPt);
-                  }
-                }
-              }
-            }
-          } else {
-            roadRoute.addAll(chunk);
-          }
-        } else {
-          roadRoute.addAll(chunk);
-        }
-      } catch (e) {
-        debugPrint('OSRM routing error: $e');
-        roadRoute.addAll(chunk);
-      }
-    }
-
-    return roadRoute.isNotEmpty ? roadRoute : points;
-  }
-
-  Future<void> fetchFieldVisits(int empId, String date) async {
-    setState(() {
-      _isLoadingVisits = true;
-    });
-
-    try {
-      final apiService = ref.read(apiServiceProvider);
-      final response = await apiService.get(
-        ApiEndpoints.getFieldVisits,
-        queryParameters: {'date': date, 'id': empId},
-        options: Options(
-          validateStatus: (status) => status != null && status < 500,
-        ),
-      );
-      final responseData = response.data;
-      if (responseData is Map && responseData['success'] == true) {
-        final data = responseData['data'] ?? {};
-        final attendance = data['attendance'] is Map
-            ? Map<String, dynamic>.from(data['attendance'])
-            : null;
-        final visits = data['visits'] as List<dynamic>? ?? [];
-        setState(() {
-          _attendanceData = attendance;
-          _visitsData = visits;
-        });
-
-        final List<LatLng> fetchedPoints = [];
-        final List<LatLng> stoppagePoints = [];
-        final List<String> timestamps = [];
-        final List<double> speeds = [];
-
-        for (final visit in visits) {
-          final locations = visit['locations'] as List<dynamic>? ?? [];
-          for (final loc in locations) {
-            if (loc['latitude'] != null && loc['longitude'] != null) {
-              final lat = double.tryParse(loc['latitude'].toString());
-              final lng = double.tryParse(loc['longitude'].toString());
-              final timeVal = int.tryParse(loc['time']?.toString() ?? '0') ?? 0;
-              if (lat != null && lng != null) {
-                final pt = LatLng(lat, lng);
-                fetchedPoints.add(pt);
-                // Capture timestamp from createdAt or timestamp field
-                final ts =
-                    loc['createdAt']?.toString() ??
-                    loc['created_at']?.toString() ??
-                    loc['timestamp']?.toString() ??
-                    '';
-                timestamps.add(ts);
-                // Capture speed from API or default to 0
-                final spd =
-                    double.tryParse(loc['speed']?.toString() ?? '0') ?? 0.0;
-                speeds.add(spd);
-                if (timeVal > 0) {
-                  stoppagePoints.add(pt);
-                }
-              }
-            }
-          }
-        }
-
-        if (fetchedPoints.isNotEmpty) {
-          final List<LatLng> activePoints = GpsFilterService.cleanRoutePoints(fetchedPoints);
-          final List<LatLng> activeStoppages = stoppagePoints;
-          final List<String> activeTimestamps = timestamps;
-          final List<double> activeSpeeds = speeds;
-
-          // Calculate speeds from consecutive points if API returns 0
-          for (int i = 1; i < fetchedPoints.length; i++) {
-            if (activeSpeeds[i] == 0.0) {
-              final dist = const Distance().as(
-                LengthUnit.Meter,
-                fetchedPoints[i - 1],
-                fetchedPoints[i],
-              );
-              double timeDiffHours = 0.01;
-              if (activeTimestamps[i].isNotEmpty &&
-                  activeTimestamps[i - 1].isNotEmpty) {
-                try {
-                  final t1 = DateTime.parse(activeTimestamps[i - 1]);
-                  final t2 = DateTime.parse(activeTimestamps[i]);
-                  final diffSec = t2.difference(t1).inSeconds.abs();
-                  if (diffSec > 0) timeDiffHours = diffSec / 3600.0;
-                } catch (_) {}
-              }
-              final speedKmh = (dist / 1000.0) / timeDiffHours;
-              activeSpeeds[i] = speedKmh.clamp(0.0, 200.0);
-            }
-          }
-
-          setState(() {
-            _rawVisitPoints = activePoints;
-            _fieldVisitRoutePoints = activePoints;
-            _stoppageRoutePoints = activeStoppages;
-            _locationTimestamps = activeTimestamps;
-            _locationSpeeds = activeSpeeds;
-            _isLoadingVisits = false;
-            // Reset playback to start
-            _playbackCurrentIndex = 0;
-            _playbackProgress = 0.0;
-            _playbackMarkerPosition = activePoints.first;
-            _playbackCurrentTimestamp = activeTimestamps.first;
-            _playbackCurrentSpeed = activeSpeeds.first;
-          });
-          _mapController.move(activePoints.first, 17.8);
-
-          // Fetch road-snapped route points using OSRM
-          _fetchRoadRoute(activePoints)
-              .then((roadPoints) {
-                if (mounted && roadPoints.isNotEmpty) {
-                  final List<LatLng> fullRoadRoute = [];
-                  if (activePoints.first.latitude != roadPoints.first.latitude ||
-                      activePoints.first.longitude !=
-                          roadPoints.first.longitude) {
-                    fullRoadRoute.add(activePoints.first);
-                  }
-                  fullRoadRoute.addAll(roadPoints);
-                  if (activePoints.last.latitude != roadPoints.last.latitude ||
-                      activePoints.last.longitude != roadPoints.last.longitude) {
-                    fullRoadRoute.add(activePoints.last);
-                  }
-                  setState(() {
-                    _fieldVisitRoutePoints = fullRoadRoute;
-                  });
-                }
-              })
-              .catchError((e) {
-                debugPrint("Road route error: $e");
-              });
-        } else {
-          // No location points found for this date
-          setState(() {
-            _rawVisitPoints = [];
-            _fieldVisitRoutePoints = [];
-            _stoppageRoutePoints = [];
-            _locationTimestamps = [];
-            _locationSpeeds = [];
-            _isLoadingVisits = false;
-            _playbackCurrentIndex = 0;
-            _playbackProgress = 0.0;
-            _playbackMarkerPosition = null;
-            _playbackCurrentTimestamp = '';
-            _playbackCurrentSpeed = 0.0;
-          });
-        }
-        return;
-      } else {
-        debugPrint(
-          "Field visits response error: status code ${responseData?['statusCode']}: ${responseData?['message']}",
-        );
-      }
-    } catch (e) {
-      debugPrint("Error fetching field visits: $e");
-    }
-
-    // Clear all data on error / 404 / failure response
-    setState(() {
-      _attendanceData = null;
-      _visitsData = [];
-      _rawVisitPoints = [];
-      _fieldVisitRoutePoints = [];
-      _stoppageRoutePoints = [];
-      _locationTimestamps = [];
-      _locationSpeeds = [];
-      _isLoadingVisits = false;
-      _playbackCurrentIndex = 0;
-      _playbackProgress = 0.0;
-      _playbackMarkerPosition = null;
-      _playbackCurrentTimestamp = '';
-      _playbackCurrentSpeed = 0.0;
-    });
-  }
+  // fetchFieldVisits and _fetchRoadRoute now in FieldVisitNotifier (fieldVisitProvider)
 
   List<Marker> _buildRouteMarkers() {
-    final rawPts = _rawVisitPoints.isNotEmpty
-        ? _rawVisitPoints
-        : _fieldVisitRoutePoints;
+    final visitState = ref.read(fieldVisitProvider);
+    final rawPts = visitState.rawVisitPoints.isNotEmpty
+        ? visitState.rawVisitPoints
+        : visitState.fieldVisitRoutePoints;
     if (rawPts.isEmpty) return [];
 
     List<Marker> markers = [];
@@ -478,7 +240,7 @@ class _EmployeeLiveTrackingScreenState
     }
 
     // Stoppage Waypoint Markers (bindi) ONLY for points where time > 0
-    for (final stopPoint in _stoppageRoutePoints) {
+    for (final stopPoint in visitState.stoppageRoutePoints) {
       markers.add(
         Marker(
           point: stopPoint,
@@ -510,7 +272,8 @@ class _EmployeeLiveTrackingScreenState
   // ──────────────────────────────────────────────────────────
 
   void _startPlayback() {
-    if (_fieldVisitRoutePoints.isEmpty) return;
+    final visitState = ref.read(fieldVisitProvider);
+    if (visitState.fieldVisitRoutePoints.isEmpty) return;
     _playbackTimer?.cancel();
     // Interval: ~100ms / speedMultiplier gives smooth animation
     final interval = Duration(
@@ -521,7 +284,7 @@ class _EmployeeLiveTrackingScreenState
         timer.cancel();
         return;
       }
-      final total = _fieldVisitRoutePoints.length;
+      final total = visitState.fieldVisitRoutePoints.length;
       if (_playbackCurrentIndex >= total - 1) {
         // Reached end — stop playback
         timer.cancel();
@@ -534,13 +297,15 @@ class _EmployeeLiveTrackingScreenState
       setState(() {
         _playbackCurrentIndex++;
         _playbackProgress = _playbackCurrentIndex / (total - 1);
-        _playbackMarkerPosition = _fieldVisitRoutePoints[_playbackCurrentIndex];
+        _playbackMarkerPosition =
+            visitState.fieldVisitRoutePoints[_playbackCurrentIndex];
         _playbackCurrentTimestamp =
-            _locationTimestamps.length > _playbackCurrentIndex
-            ? _locationTimestamps[_playbackCurrentIndex]
+            visitState.locationTimestamps.length > _playbackCurrentIndex
+            ? visitState.locationTimestamps[_playbackCurrentIndex]
             : '';
-        _playbackCurrentSpeed = _locationSpeeds.length > _playbackCurrentIndex
-            ? _locationSpeeds[_playbackCurrentIndex]
+        _playbackCurrentSpeed =
+            visitState.locationSpeeds.length > _playbackCurrentIndex
+            ? visitState.locationSpeeds[_playbackCurrentIndex]
             : 0.0;
       });
       // Smoothly move map camera to follow the marker
@@ -564,18 +329,19 @@ class _EmployeeLiveTrackingScreenState
   void _seekPlayback(double sliderValue) {
     _playbackTimer?.cancel();
     _playbackTimer = null;
-    final total = _fieldVisitRoutePoints.length;
+    final visitState = ref.read(fieldVisitProvider);
+    final total = visitState.fieldVisitRoutePoints.length;
     if (total == 0) return;
     final idx = ((total - 1) * sliderValue).round().clamp(0, total - 1);
     setState(() {
       _playbackCurrentIndex = idx;
       _playbackProgress = sliderValue;
-      _playbackMarkerPosition = _fieldVisitRoutePoints[idx];
-      _playbackCurrentTimestamp = _locationTimestamps.length > idx
-          ? _locationTimestamps[idx]
+      _playbackMarkerPosition = visitState.fieldVisitRoutePoints[idx];
+      _playbackCurrentTimestamp = visitState.locationTimestamps.length > idx
+          ? visitState.locationTimestamps[idx]
           : '';
-      _playbackCurrentSpeed = _locationSpeeds.length > idx
-          ? _locationSpeeds[idx]
+      _playbackCurrentSpeed = visitState.locationSpeeds.length > idx
+          ? visitState.locationSpeeds[idx]
           : 0.0;
       _isPlayingbackPlaying = false;
     });
@@ -626,7 +392,9 @@ class _EmployeeLiveTrackingScreenState
       _playbackTimer?.cancel();
       _playbackTimer = null;
       // Re-fetch visits for new date, same employee
-      await fetchFieldVisits(_getEmployeeId(), dateStr);
+      await ref
+          .read(fieldVisitProvider.notifier)
+          .fetchFieldVisits(_getEmployeeId(), dateStr);
     }
   }
 
@@ -1011,14 +779,15 @@ class _EmployeeLiveTrackingScreenState
   }
 
   Widget _buildLiveTab() {
-    final activeRoutePoints = _fieldVisitRoutePoints;
+    final visitState = ref.watch(fieldVisitProvider);
+    final activeRoutePoints = visitState.fieldVisitRoutePoints;
     final initialCenter = activeRoutePoints.isNotEmpty
         ? activeRoutePoints.first
         : (_currentLocation ?? const LatLng(20.5937, 78.9629));
 
     return Stack(
       children: [
-        if (_isLoadingVisits)
+        if (visitState.isLoading)
           const Positioned(
             top: 0,
             left: 0,
@@ -1156,7 +925,8 @@ class _EmployeeLiveTrackingScreenState
 
   // Trackwick Playback Tab View: 100% Full-Screen Map with 360° Overlay, Right Map Controls & Bottom Player Bar
   Widget _buildPlaybackTab() {
-    final activeRoutePoints = _fieldVisitRoutePoints;
+    final visitState = ref.watch(fieldVisitProvider);
+    final activeRoutePoints = visitState.fieldVisitRoutePoints;
     final initialCenter = activeRoutePoints.isNotEmpty
         ? activeRoutePoints.first
         : (_currentLocation ?? const LatLng(20.5937, 78.9629));
@@ -1298,7 +1068,7 @@ class _EmployeeLiveTrackingScreenState
                     ),
                   ),
                 // Stoppage bindi markers
-                ..._stoppageRoutePoints.map(
+                ...visitState.stoppageRoutePoints.map(
                   (pt) => Marker(
                     point: pt,
                     width: 14,
@@ -1434,6 +1204,7 @@ class _EmployeeLiveTrackingScreenState
 
   // Bottom Playback Player Controls Bar (Play/Pause, Slider, Speed & Timestamp)
   Widget _buildBottomPlaybackPlayerBar() {
+    final visitState = ref.watch(fieldVisitProvider);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
@@ -1448,22 +1219,24 @@ class _EmployeeLiveTrackingScreenState
           // Play / Pause button
           GestureDetector(
             onTap: () {
-              if (_fieldVisitRoutePoints.isEmpty) return;
+              if (visitState.fieldVisitRoutePoints.isEmpty) return;
               if (_isPlayingbackPlaying) {
                 _pausePlayback();
               } else {
                 // If at end, restart from beginning
                 if (_playbackCurrentIndex >=
-                    _fieldVisitRoutePoints.length - 1) {
+                    visitState.fieldVisitRoutePoints.length - 1) {
                   setState(() {
                     _playbackCurrentIndex = 0;
                     _playbackProgress = 0.0;
-                    _playbackMarkerPosition = _fieldVisitRoutePoints.first;
-                    _playbackCurrentTimestamp = _locationTimestamps.isNotEmpty
-                        ? _locationTimestamps.first
+                    _playbackMarkerPosition =
+                        visitState.fieldVisitRoutePoints.first;
+                    _playbackCurrentTimestamp =
+                        visitState.locationTimestamps.isNotEmpty
+                        ? visitState.locationTimestamps.first
                         : '';
-                    _playbackCurrentSpeed = _locationSpeeds.isNotEmpty
-                        ? _locationSpeeds.first
+                    _playbackCurrentSpeed = visitState.locationSpeeds.isNotEmpty
+                        ? visitState.locationSpeeds.first
                         : 0.0;
                   });
                 }
@@ -2156,9 +1929,10 @@ class _EmployeeLiveTrackingScreenState
 
   // Sub-Header Stats Row matching Trackwick (Today date pill + Completed count + Distance Km)
   Widget _buildSubHeaderStatsRow() {
-    final distanceKm = _calculateDistanceInKm(_fieldVisitRoutePoints);
+    final visitState = ref.watch(fieldVisitProvider);
+    final distanceKm = _calculateDistanceInKm(visitState.rawVisitPoints);
     final distanceStr = '${distanceKm.toStringAsFixed(2)}Km';
-    final completedCount = '${_visitsData.length}';
+    final completedCount = '${visitState.visitsData.length}';
 
     // Format selected date label
     final now = DateTime.now();
@@ -2269,7 +2043,8 @@ class _EmployeeLiveTrackingScreenState
 
   // Vertical Timeline List matching exact API data dynamically
   Widget _buildVerticalTimelineList() {
-    if (_attendanceData == null && _visitsData.isEmpty) {
+    final visitState = ref.watch(fieldVisitProvider);
+    if (visitState.attendanceData == null && visitState.visitsData.isEmpty) {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
         alignment: Alignment.center,
@@ -2277,11 +2052,7 @@ class _EmployeeLiveTrackingScreenState
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: const [
-            Icon(
-              Icons.event_busy_outlined,
-              size: 44,
-              color: Colors.grey,
-            ),
+            Icon(Icons.event_busy_outlined, size: 44, color: Colors.grey),
             SizedBox(height: 12),
             Text(
               'No attendance record found for this date',
@@ -2300,9 +2071,9 @@ class _EmployeeLiveTrackingScreenState
     List<Widget> items = [];
 
     final punchInOffice =
-        _attendanceData?['punchInOffice'] as Map<String, dynamic>?;
+        visitState.attendanceData?['punchInOffice'] as Map<String, dynamic>?;
     final punchOutOffice =
-        _attendanceData?['punchOutOffice'] as Map<String, dynamic>?;
+        visitState.attendanceData?['punchOutOffice'] as Map<String, dynamic>?;
 
     String punchInAddress = 'Location not available';
     if (punchInOffice != null) {
@@ -2315,11 +2086,11 @@ class _EmployeeLiveTrackingScreenState
       } else if (name.isNotEmpty) {
         punchInAddress = name;
       }
-    } else if (_attendanceData?['clock_in_address'] != null ||
-        _attendanceData?['punch_in_address'] != null) {
+    } else if (visitState.attendanceData?['clock_in_address'] != null ||
+        visitState.attendanceData?['punch_in_address'] != null) {
       punchInAddress =
-          _attendanceData?['clock_in_address']?.toString() ??
-          _attendanceData?['punch_in_address']?.toString() ??
+          visitState.attendanceData?['clock_in_address']?.toString() ??
+          visitState.attendanceData?['punch_in_address']?.toString() ??
           'Location not available';
     }
 
@@ -2334,26 +2105,26 @@ class _EmployeeLiveTrackingScreenState
       } else if (name.isNotEmpty) {
         punchOutAddress = name;
       }
-    } else if (_attendanceData?['clock_out_address'] != null ||
-        _attendanceData?['punch_out_address'] != null) {
+    } else if (visitState.attendanceData?['clock_out_address'] != null ||
+        visitState.attendanceData?['punch_out_address'] != null) {
       punchOutAddress =
-          _attendanceData?['clock_out_address']?.toString() ??
-          _attendanceData?['punch_out_address']?.toString() ??
+          visitState.attendanceData?['clock_out_address']?.toString() ??
+          visitState.attendanceData?['punch_out_address']?.toString() ??
           'Location not available';
     }
 
-    final clockInRaw = _attendanceData?['clock_in'];
+    final clockInRaw = visitState.attendanceData?['clock_in'];
     final clockInTime = clockInRaw != null
         ? _formatTimeOnly(clockInRaw, fallback: '')
         : '';
-    final clockOutRaw = _attendanceData?['clock_out'];
+    final clockOutRaw = visitState.attendanceData?['clock_out'];
     final clockOutTime = clockOutRaw != null
         ? _formatTimeOnly(clockOutRaw, fallback: '')
         : '';
 
     // Extract locations from visits
     List<Map<String, dynamic>> locationsList = [];
-    for (final visit in _visitsData) {
+    for (final visit in visitState.visitsData) {
       if (visit is Map && visit['locations'] is List) {
         for (final loc in visit['locations']) {
           if (loc is Map) {
@@ -2375,11 +2146,7 @@ class _EmployeeLiveTrackingScreenState
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: const [
-            Icon(
-              Icons.event_busy_outlined,
-              size: 44,
-              color: Colors.grey,
-            ),
+            Icon(Icons.event_busy_outlined, size: 44, color: Colors.grey),
             SizedBox(height: 12),
             Text(
               'No attendance record found for this date',
@@ -2411,7 +2178,8 @@ class _EmployeeLiveTrackingScreenState
     // 2. Locations / Stoppages / Travelled items
     for (int i = 0; i < locationsList.length; i++) {
       final loc = locationsList[i];
-      final addedAtStr = loc['addedAt']?.toString() ??
+      final addedAtStr =
+          loc['addedAt']?.toString() ??
           loc['createdAt']?.toString() ??
           loc['timestamp']?.toString();
       final timeFormatted = _formatTimeOnly(addedAtStr, fallback: '');
@@ -3148,8 +2916,9 @@ class _EmployeeLiveTrackingScreenState
   }
 
   Map<String, dynamic>? _getEmployeeData() {
-    if (_attendanceData?['employee'] is Map) {
-      return Map<String, dynamic>.from(_attendanceData!['employee']);
+    final visitState = ref.watch(fieldVisitProvider);
+    if (visitState.attendanceData?['employee'] is Map) {
+      return Map<String, dynamic>.from(visitState.attendanceData!['employee']);
     }
     if (widget.employeeExtra is Map) {
       return Map<String, dynamic>.from(widget.employeeExtra);

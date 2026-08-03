@@ -12,7 +12,6 @@ import '../../../core/network/network_checker.dart';
 import '../../../core/storage/local_storage.dart';
 import '../model/unsynced_punch_record.dart';
 import '../service/background_location_service.dart';
-import '../service/gps_filter_service.dart';
 import '../service/offline_sync_service.dart';
 import 'sync_provider.dart';
 
@@ -78,7 +77,8 @@ class PunchInNotifier extends Notifier<PunchInState> {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       throw AppException(
-          'Location service (GPS) is turned off. Please turn on Location services to punch in.');
+        'Location service (GPS) is turned off. Please turn on Location services to punch in.',
+      );
     }
 
     LocationPermission permission = await Geolocator.checkPermission();
@@ -86,13 +86,15 @@ class PunchInNotifier extends Notifier<PunchInState> {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
         throw AppException(
-            'Location permission denied. Location access is required to punch in.');
+          'Location permission denied. Location access is required to punch in.',
+        );
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
       throw AppException(
-          'Location permission permanently denied. Please allow location permission in app settings to punch in.');
+        'Location permission permanently denied. Please allow location permission in app settings to punch in.',
+      );
     }
 
     if (permission == LocationPermission.whileInUse ||
@@ -100,19 +102,16 @@ class PunchInNotifier extends Notifier<PunchInState> {
       try {
         final pos = await Geolocator.getCurrentPosition(
           locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.bestForNavigation,
-            distanceFilter: 5,
-            timeLimit: Duration(seconds: 5),
+            accuracy: LocationAccuracy.medium,
+            timeLimit: Duration(seconds: 3),
           ),
         );
-        if (GpsFilterService.isAccuracyValid(pos)) {
-          return pos;
-        }
+        return pos;
       } catch (_) {}
 
       try {
         final lastPos = await Geolocator.getLastKnownPosition();
-        if (lastPos != null && GpsFilterService.isAccuracyValid(lastPos)) {
+        if (lastPos != null) {
           return lastPos;
         }
       } catch (_) {}

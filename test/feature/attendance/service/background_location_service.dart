@@ -9,7 +9,6 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../../../core/api/api_endpoints.dart';
 import '../../../core/storage/local_storage.dart';
 import '../model/unsynced_punch_record.dart';
-import 'gps_filter_service.dart';
 import 'offline_sync_service.dart';
 
 class BackgroundLocationService {
@@ -85,10 +84,11 @@ void onStart(ServiceInstance service) async {
   final socketUrl = ApiEndpoints.socketUrl;
   io.Socket? socket;
   Timer? timer;
+  StreamSubscription<Position>? positionStreamSub;
 
   double? lastLat;
   double? lastLng;
-  Position? lastValidPosition;
+  Position? lastPosition;
   DateTime? stationaryStartTime;
 
   DateTime? lastOfflineSavedTime;
@@ -171,15 +171,12 @@ void onStart(ServiceInstance service) async {
       try {
         final pos = await Geolocator.getCurrentPosition(
           locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.bestForNavigation,
-            distanceFilter: 5,
-            timeLimit: Duration(seconds: 3),
+            accuracy: LocationAccuracy.medium,
+            timeLimit: Duration(seconds: 2),
           ),
         );
-        if (GpsFilterService.isAccuracyValid(pos)) {
-          finalLat = pos.latitude;
-          finalLng = pos.longitude;
-        }
+        finalLat = pos.latitude;
+        finalLng = pos.longitude;
       } catch (_) {}
 
       if (finalLat != null &&
@@ -216,141 +213,212 @@ void onStart(ServiceInstance service) async {
     }
 
     timer?.cancel();
+    await positionStreamSub?.cancel();
     socket?.disconnect();
     socket?.dispose();
     service.stopSelf();
   });
 
-  Future<void> performLocationCheck() async {
-    final isPunchedIn = await LocalStorage.getPunchStatus();
-    if (!isPunchedIn) {
-      // Check if we need to emit before stopping
-      if (lastLat != null && lastLng != null && stationaryStartTime != null) {
-        final durationInSeconds = DateTime.now()
-            .difference(stationaryStartTime!)
-            .inSeconds;
-        int empId = await _getEmpId();
-        int minutes = durationInSeconds ~/ 60;
-        await sendOrSaveLocationUpdate(
-          empId: empId,
-          latitude: lastLat!,
-          longitude: lastLng!,
-          timeInMinutes: minutes,
-        );
+  // --- Concurrency guard: prevent overlapping location checks ---
+  bool checkInProgress = false;
+  // --- Minimum interval between emits to prevent rapid-fire ---
+  DateTime? lastEmitTime;
+
+  Future<void> performLocationCheck([Position? streamPosition]) async {
+    // Prevent overlapping calls from stream + timer firing together
+    if (checkInProgress) return;
+    checkInProgress = true;
+
+    try {
+      final isPunchedIn = await LocalStorage.getPunchStatus();
+      if (!isPunchedIn) {
+        // Check if we need to emit before stopping
+        if (lastLat != null && lastLng != null && stationaryStartTime != null) {
+          final durationInSeconds = DateTime.now()
+              .difference(stationaryStartTime!)
+              .inSeconds;
+          int empId = await _getEmpId();
+          int minutes = durationInSeconds ~/ 60;
+          await sendOrSaveLocationUpdate(
+            empId: empId,
+            latitude: lastLat!,
+            longitude: lastLng!,
+            timeInMinutes: minutes,
+          );
+        }
+
+        timer?.cancel();
+        await positionStreamSub?.cancel();
+        socket?.disconnect();
+        socket?.dispose();
+        service.stopSelf();
+        return;
       }
 
-      timer?.cancel();
-      socket?.disconnect();
-      socket?.dispose();
-      service.stopSelf();
-      return;
-    }
+      Position? currentPos;
 
-    Position? fetchedPos;
+      // Use stream position if provided (already OS-filtered, most reliable)
+      if (streamPosition != null) {
+        currentPos = streamPosition;
+      } else {
+        // Fallback: try getCurrentPosition
+        try {
+          currentPos = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.bestForNavigation,
+              timeLimit: Duration(seconds: 5),
+            ),
+          );
+        } catch (_) {}
 
-    // Try fetching real-time high-accuracy position first
-    try {
-      fetchedPos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.bestForNavigation,
-          distanceFilter: 5,
-          timeLimit: Duration(seconds: 4),
-        ),
-      );
-    } catch (_) {}
+        // Last resort: getLastKnownPosition
+        if (currentPos == null) {
+          try {
+            currentPos = await Geolocator.getLastKnownPosition();
+          } catch (_) {}
+        }
+      }
 
-    // Fallback to last known position if current position fetch fails or times out
-    if (fetchedPos == null) {
-      try {
-        final lastKnown = await Geolocator.getLastKnownPosition();
-        if (lastKnown != null) {
-          final diffSec = DateTime.now().difference(lastKnown.timestamp).inSeconds.abs();
-          // Only accept lastKnown if recent (< 15s) and valid accuracy (<= 20m)
-          if (diffSec <= 15 && GpsFilterService.isAccuracyValid(lastKnown)) {
-            fetchedPos = lastKnown;
+      // No position at all — skip
+      if (currentPos == null) {
+        if (lastLat == null || lastLng == null) {
+          print(
+            '=== Background Location Check: Unable to fetch GPS location, skipping tick ===',
+          );
+          return;
+        }
+        // Use last known lat/lng for stationary time tracking
+        final now = DateTime.now();
+        if (stationaryStartTime != null) {
+          final durationInSeconds =
+              now.difference(stationaryStartTime!).inSeconds;
+          int minutes = durationInSeconds ~/ 60;
+          print(
+            '=== Background: No new GPS, stationary counting: ${durationInSeconds}s (${minutes}m) ===',
+          );
+        }
+        return;
+      }
+
+      final lat = currentPos.latitude;
+      final lng = currentPos.longitude;
+
+      // --- Filter 1: GPS Accuracy Filter ---
+      if (currentPos.accuracy > 20) {
+        print(
+          '=== GPS Accuracy Filter: Poor accuracy (${currentPos.accuracy.toStringAsFixed(1)}m > 20m). Skipping. ===',
+        );
+        return;
+      }
+
+      // --- Filter 2: GPS Jump/Speed Filter ---
+      if (lastPosition != null) {
+        final jumpDistance = Geolocator.distanceBetween(
+          lastPosition!.latitude,
+          lastPosition!.longitude,
+          lat,
+          lng,
+        );
+
+        final sec = currentPos.timestamp
+            .difference(lastPosition!.timestamp)
+            .inSeconds;
+
+        if (sec > 0) {
+          final speed = jumpDistance / sec; // m/s
+          if (speed > 25) {
+            print(
+              '=== GPS Jump Filter: Speed ${speed.toStringAsFixed(1)} m/s (${(speed * 3.6).toStringAsFixed(1)} km/h). Ignoring. ===',
+            );
+            return;
           }
         }
-      } catch (_) {}
-    }
+      }
 
-    if (fetchedPos == null) {
-      print(
-        '=== Background Location Check: High-accuracy GPS position unavailable, skipping tick ===',
-      );
-      return;
-    }
-
-    // Pass fetched position through GpsFilterService (Accuracy, Speed Jump, Bearing Flip, Min Distance)
-    final bool isValidMove = GpsFilterService.isValidMovement(
-      newPos: fetchedPos,
-      lastPos: lastValidPosition,
-    );
-
-    if (!isValidMove && lastValidPosition != null) {
-      print(
-        '=== Background Location Filtered: Ignored noisy/inaccurate GPS point (lat=${fetchedPos.latitude}, lng=${fetchedPos.longitude}, accuracy=${fetchedPos.accuracy.toStringAsFixed(1)}m, speed=${(fetchedPos.speed * 3.6).toStringAsFixed(1)}km/h) ===',
-      );
-      return;
-    }
-
-    final double lat = fetchedPos.latitude;
-    final double lng = fetchedPos.longitude;
-    final now = DateTime.now();
-
-    if (lastLat != null && lastLng != null && stationaryStartTime != null) {
-      double distance = Geolocator.distanceBetween(
-        lastLat!,
-        lastLng!,
-        lat,
-        lng,
-      );
-
-      final durationInSeconds = now.difference(stationaryStartTime!).inSeconds;
-      int empId = await _getEmpId();
-      int minutes = durationInSeconds ~/ 60;
-
-      if (distance < 25.0) {
-        // Location unchanged (within 25m threshold)
-        // Keep counting time, do NOT send socket data while stationary!
-        print(
-          '=== Background Location Check: Location unchanged (distance=${distance.toStringAsFixed(2)}m < 25m). Stationary duration counting: ${durationInSeconds}s (${minutes}m). Skipping socket emit. ===',
+      // --- Filter 3: Duplicate Location Filter (< 3m = same spot) ---
+      if (lastPosition != null) {
+        final dupDist = Geolocator.distanceBetween(
+          lastPosition!.latitude,
+          lastPosition!.longitude,
+          lat,
+          lng,
         );
+        if (dupDist < 3.0) {
+          print(
+            '=== Duplicate Filter: Same spot (${dupDist.toStringAsFixed(2)}m < 3m). Skipping. ===',
+          );
+          return;
+        }
+      }
+
+      // --- Update lastPosition after all filters pass ---
+      lastPosition = currentPos;
+
+      final now = DateTime.now();
+
+      if (lastLat != null && lastLng != null && stationaryStartTime != null) {
+        double distance = Geolocator.distanceBetween(
+          lastLat!,
+          lastLng!,
+          lat,
+          lng,
+        );
+
+        final durationInSeconds =
+            now.difference(stationaryStartTime!).inSeconds;
+        int empId = await _getEmpId();
+        int minutes = durationInSeconds ~/ 60;
+
+        if (distance < 25.0) {
+          print(
+            '=== Stationary: distance=${distance.toStringAsFixed(2)}m < 25m. Duration: ${durationInSeconds}s (${minutes}m). Skipping emit. ===',
+          );
+        } else {
+          // --- Minimum Emit Interval: prevent rapid-fire emits ---
+          if (lastEmitTime != null &&
+              now.difference(lastEmitTime!).inSeconds < 10) {
+            print(
+              '=== Emit Throttle: Last emit was ${now.difference(lastEmitTime!).inSeconds}s ago (< 10s). Skipping. ===',
+            );
+            return;
+          }
+
+          print(
+            '=== Location Changed (${distance.toStringAsFixed(2)}m >= 25m)! Emitting prev (lat=$lastLat, lng=$lastLng) time=$minutes min ===',
+          );
+          await sendOrSaveLocationUpdate(
+            empId: empId,
+            latitude: lastLat!,
+            longitude: lastLng!,
+            timeInMinutes: minutes,
+            isStationaryTick: false,
+          );
+
+          lastLat = lat;
+          lastLng = lng;
+          stationaryStartTime = now;
+          lastEmitTime = now;
+        }
       } else {
-        // Location changed (distance >= 25m)
-        // Emit previous location with the accumulated stationary duration spent there
+        // First punch in: emit initial location with time = 0
+        lastLat = lat;
+        lastLng = lng;
+        stationaryStartTime = now;
+
+        int empId = await _getEmpId();
         print(
-          '=== Background Location Changed (distance=${distance.toStringAsFixed(2)}m >= 25m)! Emitting previous location (lat=$lastLat, lng=$lastLng) with time=$minutes min ===',
+          '=== Initial Location Emit: lat=$lastLat, lng=$lastLng, time=0 ===',
         );
         await sendOrSaveLocationUpdate(
           empId: empId,
           latitude: lastLat!,
           longitude: lastLng!,
-          timeInMinutes: minutes,
-          isStationaryTick: false,
+          timeInMinutes: 0,
         );
-
-        lastLat = lat;
-        lastLng = lng;
-        lastValidPosition = fetchedPos;
-        stationaryStartTime = now;
+        lastEmitTime = now;
       }
-    } else {
-      // First punch in: emit initial location with time = 0
-      lastLat = lat;
-      lastLng = lng;
-      lastValidPosition = fetchedPos;
-      stationaryStartTime = now;
-
-      int empId = await _getEmpId();
-      print(
-        '=== Initial Location Emit on Punch In: lat=$lastLat, lng=$lastLng, time=0 (Accuracy: ${fetchedPos.accuracy.toStringAsFixed(1)}m) ===',
-      );
-      await sendOrSaveLocationUpdate(
-        empId: empId,
-        latitude: lastLat!,
-        longitude: lastLng!,
-        timeInMinutes: 0,
-      );
+    } finally {
+      checkInProgress = false;
     }
   }
 
@@ -375,7 +443,7 @@ void onStart(ServiceInstance service) async {
 
     socket.onConnect((_) async {
       print(
-        '=== Background WebSocket Connected Successfully! Waiting 3s before location check... ===',
+        '=== Background WebSocket Connected! Waiting 3s before location check... ===',
       );
       await Future.delayed(const Duration(seconds: 3));
       await performLocationCheck();
@@ -397,7 +465,25 @@ void onStart(ServiceInstance service) async {
     socket.connect();
   } catch (_) {}
 
-  timer = Timer.periodic(const Duration(seconds: 3), (t) async {
+  // --- Use getPositionStream for stable OS-filtered locations ---
+  positionStreamSub =
+      Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.bestForNavigation,
+          distanceFilter: 10, // Only notify when moved >= 10m (reduces GPS noise)
+        ),
+      ).listen(
+        (Position position) async {
+          // Pass the stream's position directly — no need to fetch again
+          await performLocationCheck(position);
+        },
+        onError: (e) {
+          print('=== Position Stream Error: $e ===');
+        },
+      );
+
+  // Fallback timer: ensures stationary time still gets checked even when stream is quiet
+  timer = Timer.periodic(const Duration(seconds: 30), (t) async {
     if (socket != null && !socket.connected) {
       try {
         socket.connect();

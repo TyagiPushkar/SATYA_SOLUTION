@@ -1,7 +1,7 @@
 class ApiEndpoints {
-  // static const String baseUrl =
-  //     'https://namamibackend-1namamibackend.onrender.com/api/v1';
-  static const String baseUrl = 'http://192.168.1.4:5000/api/v1';
+  static const String baseUrl =
+      'https://namamibackend-1namamibackend.onrender.com/api/v1';
+  // static const String baseUrl = 'http://192.168.1.12:5000/api/v1';
   static const String login = '/employees/login';
   static const String logout = '/employees/logout';
   static const String profile = '/profile';
@@ -38,3 +38,9 @@ class ApiEndpoints {
     }
   }
 }
+
+
+
+
+
+//Board of High School and Intermediate Education Uttar Pradesh
