@@ -12,6 +12,7 @@ import '../../../core/network/network_checker.dart';
 import '../../../core/storage/local_storage.dart';
 import '../model/unsynced_punch_record.dart';
 import '../service/background_location_service.dart';
+import '../service/gps_filter_service.dart';
 import '../service/offline_sync_service.dart';
 import 'sync_provider.dart';
 
@@ -99,16 +100,19 @@ class PunchInNotifier extends Notifier<PunchInState> {
       try {
         final pos = await Geolocator.getCurrentPosition(
           locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.medium,
-            timeLimit: Duration(seconds: 3),
+            accuracy: LocationAccuracy.bestForNavigation,
+            distanceFilter: 5,
+            timeLimit: Duration(seconds: 5),
           ),
         );
-        return pos;
+        if (GpsFilterService.isAccuracyValid(pos)) {
+          return pos;
+        }
       } catch (_) {}
 
       try {
         final lastPos = await Geolocator.getLastKnownPosition();
-        if (lastPos != null) {
+        if (lastPos != null && GpsFilterService.isAccuracyValid(lastPos)) {
           return lastPos;
         }
       } catch (_) {}

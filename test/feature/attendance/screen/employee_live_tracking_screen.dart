@@ -9,6 +9,7 @@ import 'package:dio/dio.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../../core/api/api_service.dart';
+import '../service/gps_filter_service.dart';
 import 'monthly_records_screen.dart';
 
 enum TimelineItemType { punchIn, punchOut, travelled, stoppage, task }
@@ -307,7 +308,7 @@ class _EmployeeLiveTrackingScreenState
         }
 
         if (fetchedPoints.isNotEmpty) {
-          final List<LatLng> activePoints = fetchedPoints;
+          final List<LatLng> activePoints = GpsFilterService.cleanRoutePoints(fetchedPoints);
           final List<LatLng> activeStoppages = stoppagePoints;
           final List<String> activeTimestamps = timestamps;
           final List<double> activeSpeeds = speeds;

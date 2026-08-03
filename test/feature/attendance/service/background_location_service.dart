@@ -9,6 +9,7 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../../../core/api/api_endpoints.dart';
 import '../../../core/storage/local_storage.dart';
 import '../model/unsynced_punch_record.dart';
+import 'gps_filter_service.dart';
 import 'offline_sync_service.dart';
 
 class BackgroundLocationService {
@@ -87,6 +88,7 @@ void onStart(ServiceInstance service) async {
 
   double? lastLat;
   double? lastLng;
+  Position? lastValidPosition;
   DateTime? stationaryStartTime;
 
   DateTime? lastOfflineSavedTime;
@@ -169,12 +171,15 @@ void onStart(ServiceInstance service) async {
       try {
         final pos = await Geolocator.getCurrentPosition(
           locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.medium,
-            timeLimit: Duration(seconds: 2),
+            accuracy: LocationAccuracy.bestForNavigation,
+            distanceFilter: 5,
+            timeLimit: Duration(seconds: 3),
           ),
         );
-        finalLat = pos.latitude;
-        finalLng = pos.longitude;
+        if (GpsFilterService.isAccuracyValid(pos)) {
+          finalLat = pos.latitude;
+          finalLng = pos.longitude;
+        }
       } catch (_) {}
 
       if (finalLat != null &&
@@ -241,51 +246,63 @@ void onStart(ServiceInstance service) async {
       return;
     }
 
-    double? lat;
-    double? lng;
+    Position? fetchedPos;
 
+    // Try fetching real-time high-accuracy position first
     try {
-      final pos = await Geolocator.getLastKnownPosition();
-      if (pos != null) {
-        lat = pos.latitude;
-        lng = pos.longitude;
-      }
+      fetchedPos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.bestForNavigation,
+          distanceFilter: 5,
+          timeLimit: Duration(seconds: 4),
+        ),
+      );
     } catch (_) {}
 
-    if (lat == null || lng == null) {
+    // Fallback to last known position if current position fetch fails or times out
+    if (fetchedPos == null) {
       try {
-        final currentPos = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.medium,
-            timeLimit: Duration(seconds: 3),
-          ),
-        );
-        lat = currentPos.latitude;
-        lng = currentPos.longitude;
+        final lastKnown = await Geolocator.getLastKnownPosition();
+        if (lastKnown != null) {
+          final diffSec = DateTime.now().difference(lastKnown.timestamp).inSeconds.abs();
+          // Only accept lastKnown if recent (< 15s) and valid accuracy (<= 20m)
+          if (diffSec <= 15 && GpsFilterService.isAccuracyValid(lastKnown)) {
+            fetchedPos = lastKnown;
+          }
+        }
       } catch (_) {}
     }
 
-    // If location fetch failed, fallback to last known lat/lng so we don't jump coordinates!
-    if (lat == null || lng == null) {
-      if (lastLat != null && lastLng != null) {
-        lat = lastLat;
-        lng = lastLng;
-      } else {
-        print(
-          '=== Background Location Check: Unable to fetch GPS location, skipping tick ===',
-        );
-        return;
-      }
+    if (fetchedPos == null) {
+      print(
+        '=== Background Location Check: High-accuracy GPS position unavailable, skipping tick ===',
+      );
+      return;
     }
 
+    // Pass fetched position through GpsFilterService (Accuracy, Speed Jump, Bearing Flip, Min Distance)
+    final bool isValidMove = GpsFilterService.isValidMovement(
+      newPos: fetchedPos,
+      lastPos: lastValidPosition,
+    );
+
+    if (!isValidMove && lastValidPosition != null) {
+      print(
+        '=== Background Location Filtered: Ignored noisy/inaccurate GPS point (lat=${fetchedPos.latitude}, lng=${fetchedPos.longitude}, accuracy=${fetchedPos.accuracy.toStringAsFixed(1)}m, speed=${(fetchedPos.speed * 3.6).toStringAsFixed(1)}km/h) ===',
+      );
+      return;
+    }
+
+    final double lat = fetchedPos.latitude;
+    final double lng = fetchedPos.longitude;
     final now = DateTime.now();
 
     if (lastLat != null && lastLng != null && stationaryStartTime != null) {
       double distance = Geolocator.distanceBetween(
         lastLat!,
         lastLng!,
-        lat!,
-        lng!,
+        lat,
+        lng,
       );
 
       final durationInSeconds = now.difference(stationaryStartTime!).inSeconds;
@@ -314,17 +331,19 @@ void onStart(ServiceInstance service) async {
 
         lastLat = lat;
         lastLng = lng;
+        lastValidPosition = fetchedPos;
         stationaryStartTime = now;
       }
     } else {
       // First punch in: emit initial location with time = 0
       lastLat = lat;
       lastLng = lng;
+      lastValidPosition = fetchedPos;
       stationaryStartTime = now;
 
       int empId = await _getEmpId();
       print(
-        '=== Initial Location Emit on Punch In: lat=$lastLat, lng=$lastLng, time=0 ===',
+        '=== Initial Location Emit on Punch In: lat=$lastLat, lng=$lastLng, time=0 (Accuracy: ${fetchedPos.accuracy.toStringAsFixed(1)}m) ===',
       );
       await sendOrSaveLocationUpdate(
         empId: empId,

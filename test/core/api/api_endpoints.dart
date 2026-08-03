@@ -1,7 +1,7 @@
 class ApiEndpoints {
-  static const String baseUrl =
-      'https://namamibackend-1namamibackend.onrender.com/api/v1';
-  // static const String baseUrl = 'http://192.168.1.6:5000/api/v1';
+  // static const String baseUrl =
+  //     'https://namamibackend-1namamibackend.onrender.com/api/v1';
+  static const String baseUrl = 'http://192.168.1.4:5000/api/v1';
   static const String login = '/employees/login';
   static const String logout = '/employees/logout';
   static const String profile = '/profile';
@@ -16,8 +16,8 @@ class ApiEndpoints {
   static const String getCustomerForm = '/customers/options';
   static const String createTask = '/tasks/create';
   static const String getTaskTypes = '/task-types/get-all';
-
   static const String getTasks = '/tasks/get-all';
+
   static const String getEmployees = '/employees/get-all';
   static const String createEmployee = '/employees/create';
   static const String getCreateEmployeeForm = '/employees/create-form';
@@ -29,7 +29,6 @@ class ApiEndpoints {
   static const String getFieldVisits = '/field-visits/get-by-date';
   static const String getCompleteBehalfFields = '/complete-behalf/fields';
   static const String completeBehalfTask = '/complete-behalf/complete';
-
   static String get socketUrl {
     try {
       final uri = Uri.parse(baseUrl);
