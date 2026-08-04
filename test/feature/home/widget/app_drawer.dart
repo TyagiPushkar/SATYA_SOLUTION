@@ -284,7 +284,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                 }
 
                 // Role / Admin / Leave / Branch / Holiday / Reports / Department / Designation
-                if (perms.role.hasAnyAccess) {
+                if (perms.admin.role.hasAnyAccess) {
                   items.add(
                     ListTile(
                       leading: const Icon(
@@ -312,7 +312,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                   );
                   items.add(const Divider(height: 1));
                 }
-                if (perms.leave.hasAnyAccess) {
+                if (perms.admin.leave.hasAnyAccess) {
                   items.add(
                     ListTile(
                       leading: const Icon(
@@ -326,7 +326,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                   );
                   items.add(const Divider(height: 1));
                 }
-                if (perms.branch.hasAnyAccess) {
+                if (perms.admin.branch.hasAnyAccess) {
                   items.add(
                     ListTile(
                       leading: const Icon(
@@ -340,7 +340,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                   );
                   items.add(const Divider(height: 1));
                 }
-                if (perms.holiday.hasAnyAccess) {
+                if (perms.admin.holidays.hasAnyAccess) {
                   items.add(
                     ListTile(
                       leading: const Icon(
@@ -354,7 +354,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                   );
                   items.add(const Divider(height: 1));
                 }
-                if (perms.reports.hasAnyAccess) {
+                if (perms.admin.reports.hasAnyAccess) {
                   items.add(
                     ListTile(
                       leading: const Icon(
@@ -368,7 +368,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                   );
                   items.add(const Divider(height: 1));
                 }
-                if (perms.department.hasAnyAccess) {
+                if (perms.admin.department.hasAnyAccess) {
                   items.add(
                     ListTile(
                       leading: const Icon(
@@ -382,7 +382,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                   );
                   items.add(const Divider(height: 1));
                 }
-                if (perms.designation.hasAnyAccess) {
+                if (perms.admin.designation.hasAnyAccess) {
                   items.add(
                     ListTile(
                       leading: const Icon(

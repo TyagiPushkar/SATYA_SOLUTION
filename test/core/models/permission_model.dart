@@ -105,6 +105,116 @@ class AttendancePermission {
   }
 }
 
+class AdminPermission {
+  final PermissionAction role;
+  final PermissionAction leave;
+  final PermissionAction state;
+  final PermissionAction branch;
+  final PermissionAction region;
+  final PermissionAction reports;
+  final PermissionAction holidays;
+  final PermissionAction tasktype;
+  final PermissionAction leaveType;
+  final PermissionAction department;
+  final PermissionAction nonworking;
+  final PermissionAction designation;
+  final PermissionAction leaveprofile;
+  final PermissionAction leavesettingsLeave;
+  final PermissionAction leavesettingsHolidays;
+  final PermissionAction leavesettingsLeaveType;
+  final PermissionAction leavesettingsNonworking;
+  final PermissionAction leavesettingsLeaveprofile;
+
+  AdminPermission({
+    required this.role,
+    required this.leave,
+    required this.state,
+    required this.branch,
+    required this.region,
+    required this.reports,
+    required this.holidays,
+    required this.tasktype,
+    required this.leaveType,
+    required this.department,
+    required this.nonworking,
+    required this.designation,
+    required this.leaveprofile,
+    required this.leavesettingsLeave,
+    required this.leavesettingsHolidays,
+    required this.leavesettingsLeaveType,
+    required this.leavesettingsNonworking,
+    required this.leavesettingsLeaveprofile,
+  });
+
+  bool get hasAnyAccess =>
+      role.hasAnyAccess ||
+      leave.hasAnyAccess ||
+      state.hasAnyAccess ||
+      branch.hasAnyAccess ||
+      region.hasAnyAccess ||
+      reports.hasAnyAccess ||
+      holidays.hasAnyAccess ||
+      tasktype.hasAnyAccess ||
+      leaveType.hasAnyAccess ||
+      department.hasAnyAccess ||
+      nonworking.hasAnyAccess ||
+      designation.hasAnyAccess ||
+      leaveprofile.hasAnyAccess ||
+      leavesettingsLeave.hasAnyAccess ||
+      leavesettingsHolidays.hasAnyAccess ||
+      leavesettingsLeaveType.hasAnyAccess ||
+      leavesettingsNonworking.hasAnyAccess ||
+      leavesettingsLeaveprofile.hasAnyAccess;
+
+  factory AdminPermission.fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      return AdminPermission(
+        role: PermissionAction(),
+        leave: PermissionAction(),
+        state: PermissionAction(),
+        branch: PermissionAction(),
+        region: PermissionAction(),
+        reports: PermissionAction(),
+        holidays: PermissionAction(),
+        tasktype: PermissionAction(),
+        leaveType: PermissionAction(),
+        department: PermissionAction(),
+        nonworking: PermissionAction(),
+        designation: PermissionAction(),
+        leaveprofile: PermissionAction(),
+        leavesettingsLeave: PermissionAction(),
+        leavesettingsHolidays: PermissionAction(),
+        leavesettingsLeaveType: PermissionAction(),
+        leavesettingsNonworking: PermissionAction(),
+        leavesettingsLeaveprofile: PermissionAction(),
+      );
+    }
+    
+    final ls = json['leavesettings'] as Map<String, dynamic>? ?? {};
+
+    return AdminPermission(
+      role: PermissionAction.fromJson(json['role']),
+      leave: PermissionAction.fromJson(json['leave']),
+      state: PermissionAction.fromJson(json['state']),
+      branch: PermissionAction.fromJson(json['branch']),
+      region: PermissionAction.fromJson(json['region']),
+      reports: PermissionAction.fromJson(json['reports']),
+      holidays: PermissionAction.fromJson(json['holidays']),
+      tasktype: PermissionAction.fromJson(json['tasktype']),
+      leaveType: PermissionAction.fromJson(json['leaveType']),
+      department: PermissionAction.fromJson(json['department']),
+      nonworking: PermissionAction.fromJson(json['nonworking']),
+      designation: PermissionAction.fromJson(json['designation']),
+      leaveprofile: PermissionAction.fromJson(json['leaveprofile']),
+      leavesettingsLeave: PermissionAction.fromJson(ls['leave']),
+      leavesettingsHolidays: PermissionAction.fromJson(ls['holidays']),
+      leavesettingsLeaveType: PermissionAction.fromJson(ls['leaveType']),
+      leavesettingsNonworking: PermissionAction.fromJson(ls['nonworking']),
+      leavesettingsLeaveprofile: PermissionAction.fromJson(ls['leaveprofile']),
+    );
+  }
+}
+
 class UserPermission {
   final TaskPermission task;
   final PermissionAction feeds;
@@ -112,16 +222,8 @@ class UserPermission {
   final PermissionAction settings;
   final PermissionAction dashboard;
   final AttendancePermission attendance;
-
-  // New API fields
-  final PermissionAction role;
-  final PermissionAction admin;
-  final PermissionAction leave;
-  final PermissionAction branch;
-  final PermissionAction holiday;
-  final PermissionAction reports;
-  final PermissionAction department;
-  final PermissionAction designation;
+  final PermissionAction customer;
+  final AdminPermission admin;
 
   UserPermission({
     required this.task,
@@ -130,14 +232,8 @@ class UserPermission {
     required this.settings,
     required this.dashboard,
     required this.attendance,
-    required this.role,
+    required this.customer,
     required this.admin,
-    required this.leave,
-    required this.branch,
-    required this.holiday,
-    required this.reports,
-    required this.department,
-    required this.designation,
   });
 
   factory UserPermission.fromJson(Map<String, dynamic>? json) {
@@ -149,14 +245,8 @@ class UserPermission {
         settings: PermissionAction(),
         dashboard: PermissionAction(),
         attendance: AttendancePermission.fromJson(null),
-        role: PermissionAction(),
-        admin: PermissionAction(),
-        leave: PermissionAction(),
-        branch: PermissionAction(),
-        holiday: PermissionAction(),
-        reports: PermissionAction(),
-        department: PermissionAction(),
-        designation: PermissionAction(),
+        customer: PermissionAction(),
+        admin: AdminPermission.fromJson(null),
       );
     }
     return UserPermission(
@@ -166,14 +256,8 @@ class UserPermission {
       settings: PermissionAction.fromJson(json['settings']),
       dashboard: PermissionAction.fromJson(json['dashboard']),
       attendance: AttendancePermission.fromJson(json['attendance']),
-      role: PermissionAction.fromJson(json['role']),
-      admin: PermissionAction.fromJson(json['admin']),
-      leave: PermissionAction.fromJson(json['leave']),
-      branch: PermissionAction.fromJson(json['branch']),
-      holiday: PermissionAction.fromJson(json['holiday']),
-      reports: PermissionAction.fromJson(json['reports']),
-      department: PermissionAction.fromJson(json['department']),
-      designation: PermissionAction.fromJson(json['designation']),
+      customer: PermissionAction.fromJson(json['customer']),
+      admin: AdminPermission.fromJson(json['admin']),
     );
   }
 }

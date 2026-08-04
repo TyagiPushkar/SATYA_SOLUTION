@@ -1,15 +1,18 @@
 class ApiEndpoints {
-  static const String baseUrl =
-      'https://namamibackend-1namamibackend.onrender.com/api/v1';
-  // static const String baseUrl = 'http://192.168.1.12:5000/api/v1';
+  // static const String baseUrl =
+  //     'https://namamibackend-1namamibackend.onrender.com/api/v1';
+  // static const String baseUrl = 'http://192.168.1.11:5000/api/v1';
+
+  static const String baseUrl = 'https://www.namami-infotech.com/satya/api/v1';
+
   static const String login = '/employees/login';
   static const String logout = '/employees/logout';
   static const String profile = '/profile';
   static const String home = '/home';
+  static const String homeStats = '/dashboard/home-stats';
   static const String clockIn = '/attendance/clock-in';
   static const String clockOut = '/attendance/clock-out';
-  static const String allEmployeeAttendance =
-      '/attendance/all-employee-attendance';
+  static const String allEmployeeAttendance = '/attendance/all-employee-attendance';
   static const String createCustomer = '/customers/create';
   static const String getCustomers = '/customers/get-all';
   static const String getCreateTaskForm = '/tasks/create-form';
@@ -17,7 +20,6 @@ class ApiEndpoints {
   static const String createTask = '/tasks/create';
   static const String getTaskTypes = '/task-types/get-all';
   static const String getTasks = '/tasks/get-all';
-
   static const String getEmployees = '/employees/get-all';
   static const String createEmployee = '/employees/create';
   static const String getCreateEmployeeForm = '/employees/create-form';
@@ -25,6 +27,7 @@ class ApiEndpoints {
   static const String myTeam = '/employees/my-team';
   static const String customerTasks = '/tasks/customer/task';
   static const String teamTasks = '/tasks/team/task';
+  static const String employeeTasks = '/tasks/employee/task';
   static String getTaskDetails(String slug) => '/tasks/get/$slug';
   static const String getFieldVisits = '/field-visits/get-by-date';
   static const String getCompleteBehalfFields = '/complete-behalf/fields';

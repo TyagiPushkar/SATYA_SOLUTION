@@ -40,13 +40,11 @@ class EmployeeListState {
     );
   }
 }
-
 class EmployeeListNotifier extends Notifier<EmployeeListState> {
   @override
   EmployeeListState build() {
     return EmployeeListState();
   }
-
   Future<void> fetchEmployees({bool refresh = false}) async {
     if (refresh) {
       state = state.copyWith(isLoading: true, currentPage: 1, employees: []);
@@ -55,7 +53,6 @@ class EmployeeListNotifier extends Notifier<EmployeeListState> {
       if (state.currentPage >= state.totalPages) return;
       state = state.copyWith(isLoadMore: true);
     }
-
     try {
       final apiService = ref.read(apiServiceProvider);
       final pageToLoad = refresh ? 1 : state.currentPage + 1;
@@ -67,22 +64,18 @@ class EmployeeListNotifier extends Notifier<EmployeeListState> {
       if (state.search.isNotEmpty) {
         queryParams['search'] = state.search;
       }
-
       final response = await apiService.get(
         ApiEndpoints.getEmployees,
         queryParameters: queryParams,
       );
-
       final dynamic responseData = response.data;
       Map<String, dynamic> responseMap = {};
       if (responseData is Map) {
         responseMap = Map<String, dynamic>.from(responseData);
       }
-
       List<EmployeeModel> loadedList = [];
       int totalPages = 1;
       int currentPage = pageToLoad;
-
       if (responseMap['success'] == true || responseMap['data'] != null) {
         final data = responseMap['data'] ?? responseMap;
         final rawList = (data['employees'] ?? data['users'] ?? []) as List;
@@ -92,11 +85,9 @@ class EmployeeListNotifier extends Notifier<EmployeeListState> {
         totalPages = data['totalPages'] ?? 1;
         currentPage = data['currentPage'] ?? pageToLoad;
       }
-
       final newEmployees = refresh
           ? loadedList
           : [...state.employees, ...loadedList];
-
       state = state.copyWith(
         employees: newEmployees,
         currentPage: currentPage,
@@ -109,16 +100,13 @@ class EmployeeListNotifier extends Notifier<EmployeeListState> {
       state = state.copyWith(isLoading: false, isLoadMore: false);
     }
   }
-
   void setSearch(String search) {
     state = state.copyWith(search: search);
     fetchEmployees(refresh: true);
   }
-
   Future<String?> addEmployee(Map<String, dynamic> data) async {
     try {
       final apiService = ref.read(apiServiceProvider);
-
       List<int> parseArray(dynamic val) {
         if (val is List) {
           return val
@@ -135,7 +123,6 @@ class EmployeeListNotifier extends Notifier<EmployeeListState> {
         }
         return [1];
       }
-
       final emailVal = data['email']?.toString().trim();
       final nameVal = data['name']?.toString().trim() ?? 'employee';
       final cleanName = nameVal
@@ -145,7 +132,6 @@ class EmployeeListNotifier extends Notifier<EmployeeListState> {
           (emailVal != null && emailVal.contains('@') && emailVal.contains('.'))
           ? emailVal
           : '${cleanName.isNotEmpty ? cleanName : 'employee'}${DateTime.now().millisecondsSinceEpoch}@company.com';
-
       final payload = <String, dynamic>{
         "name": nameVal,
         "identity": data['identity']?.toString() ?? nameVal,
@@ -218,12 +204,10 @@ class EmployeeListNotifier extends Notifier<EmployeeListState> {
               [1, 3, 2],
         ),
       };
-
       final response = await apiService.post(
         ApiEndpoints.createEmployee,
         data: payload,
       );
-
       debugPrint('Create Employee API Response: ${response.data}');
       await fetchEmployees(refresh: true);
       return null;
@@ -239,7 +223,6 @@ class EmployeeListNotifier extends Notifier<EmployeeListState> {
     }
   }
 }
-
 final employeeListProvider =
     NotifierProvider<EmployeeListNotifier, EmployeeListState>(() {
       return EmployeeListNotifier();

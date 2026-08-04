@@ -24,6 +24,7 @@ class AddCustomerFormController {
   final loanTypeCtrl = TextEditingController();
   final loanNoCtrl = TextEditingController();
   final oldLoanNoCtrl = TextEditingController();
+  final oldCustomerNoCtrl = TextEditingController();
   final cycleCtrl = TextEditingController();
   final loanDisbDateCtrl = TextEditingController();
   final loanAmountCtrl = TextEditingController();
@@ -66,8 +67,10 @@ class AddCustomerFormController {
       "loanType": loanTypeCtrl.text,
       "loanNo": loanNoCtrl.text,
       "oldLoanNo": oldLoanNoCtrl.text,
-      "oldCustomerNo": "CUST20250045",
-      "image": "https://example.com/images/default.jpg",
+      "oldCustomerNo": oldCustomerNoCtrl.text,
+      "image": (fileCtrl.text != 'No file chosen' && fileCtrl.text.isNotEmpty)
+          ? fileCtrl.text
+          : "https://example.com/images/default.jpg",
       "cycle": cycleCtrl.text,
       "loanDisbDate": loanDisbDateCtrl.text,
       "loanAmount": loanAmountCtrl.text,
@@ -90,7 +93,7 @@ class AddCustomerFormController {
       "installmentAmount": installmentAmountCtrl.text,
       "maturityDate": maturityDateCtrl.text,
       "pincode": pincodeCtrl.text,
-      "preClosureAmt": preClosureAmtCtrl.text
+      "preClosureAmt": preClosureAmtCtrl.text,
     };
   }
 
@@ -111,6 +114,7 @@ class AddCustomerFormController {
     loanTypeCtrl.dispose();
     loanNoCtrl.dispose();
     oldLoanNoCtrl.dispose();
+    oldCustomerNoCtrl.dispose();
     cycleCtrl.dispose();
     loanDisbDateCtrl.dispose();
     loanAmountCtrl.dispose();

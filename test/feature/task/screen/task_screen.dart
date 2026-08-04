@@ -29,10 +29,9 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
   final TextEditingController _searchController = TextEditingController();
   final Set<String> _expandedTaskSlugs = {};
   final Set<String> _expandedCustomerIds = {};
-  String _selectedStatusFilter = 'All';
-
   List<dynamic> _getFilteredTasks(List<dynamic> rawTasks) {
-    if (_selectedStatusFilter == 'All') return rawTasks;
+    final selectedStatusFilter = ref.watch(taskFilterProvider);
+    if (selectedStatusFilter == 'All') return rawTasks;
 
     return rawTasks.where((task) {
       final status = _safeString(
@@ -40,11 +39,11 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
         fallback: 'Pending',
       ).toLowerCase();
 
-      if (_selectedStatusFilter == 'Pending') {
+      if (selectedStatusFilter == 'Pending') {
         return status.contains('pending') || status.contains('open');
-      } else if (_selectedStatusFilter == 'In Progress') {
+      } else if (selectedStatusFilter == 'In Progress') {
         return status.contains('progress') || status.contains('inprogress');
-      } else if (_selectedStatusFilter == 'Completed') {
+      } else if (selectedStatusFilter == 'Completed') {
         return status.contains('complete') ||
             status.contains('closed') ||
             status.contains('done');
@@ -54,6 +53,7 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
   }
 
   Widget _buildStatusFilterTabs(List<dynamic> allTasks) {
+    final selectedStatusFilter = ref.watch(taskFilterProvider);
     final tabs = ['All', 'Pending', 'In Progress', 'Completed'];
 
     int getCount(String statusFilter) {
@@ -85,7 +85,7 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         child: Row(
           children: tabs.map((tab) {
-            final isSelected = _selectedStatusFilter == tab;
+            final isSelected = selectedStatusFilter == tab;
             final count = getCount(tab);
 
             Color activeBgColor = Colors.white;
@@ -105,9 +105,7 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
               padding: const EdgeInsets.only(right: 8.0),
               child: InkWell(
                 onTap: () {
-                  setState(() {
-                    _selectedStatusFilter = tab;
-                  });
+                  ref.read(taskFilterProvider.notifier).setFilter(tab);
                 },
                 borderRadius: BorderRadius.circular(10),
                 child: AnimatedContainer(
@@ -360,7 +358,15 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
           if (canAdd) ...[
             if (isEmployeeMode)
               GestureDetector(
-                onTap: () => context.push('/create-employee'),
+                onTap: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) =>
+                        const DynamicCreateEmployeeBottomSheet(),
+                  );
+                },
                 child: Container(
                   height: 38,
                   padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -950,14 +956,22 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
     } else if (task['name'] != null && _safeString(task['name']).isNotEmpty) {
       nameText = _safeString(task['name'], fallback: 'NA');
     } else if (task['assigneeToEmployeeId'] is Map) {
-      nameText = _safeString((task['assigneeToEmployeeId'] as Map)['name'], fallback: 'NA');
+      nameText = _safeString(
+        (task['assigneeToEmployeeId'] as Map)['name'],
+        fallback: 'NA',
+      );
     } else if (task['assignedTo'] is Map) {
-      nameText = _safeString((task['assignedTo'] as Map)['name'], fallback: 'NA');
-    } else if (task['assignedTo'] != null && _safeString(task['assignedTo']).isNotEmpty) {
+      nameText = _safeString(
+        (task['assignedTo'] as Map)['name'],
+        fallback: 'NA',
+      );
+    } else if (task['assignedTo'] != null &&
+        _safeString(task['assignedTo']).isNotEmpty) {
       nameText = _safeString(task['assignedTo'], fallback: 'NA');
     } else if (task['employee'] is Map) {
       nameText = _safeString((task['employee'] as Map)['name'], fallback: 'NA');
-    } else if (task['employee'] != null && _safeString(task['employee']).isNotEmpty) {
+    } else if (task['employee'] != null &&
+        _safeString(task['employee']).isNotEmpty) {
       nameText = _safeString(task['employee'], fallback: 'NA');
     } else if (task['user'] is Map) {
       nameText = _safeString((task['user'] as Map)['name'], fallback: 'NA');
@@ -1237,7 +1251,9 @@ class _DynamicCreateEmployeeBottomSheetState
         data: (fields) => _buildFormContent(fields),
         loading: () => SizedBox(
           height: 250,
-          child: Shimmer.fromColors(
+          child:
+          
+           Shimmer.fromColors(
             baseColor: Colors.grey.shade300,
             highlightColor: Colors.grey.shade100,
             child: Padding(
@@ -1257,6 +1273,8 @@ class _DynamicCreateEmployeeBottomSheetState
               ),
             ),
           ),
+       
+       
         ),
         error: (err, stack) => SizedBox(
           height: 200,

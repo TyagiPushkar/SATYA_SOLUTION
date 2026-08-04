@@ -16,6 +16,19 @@ final taskTitleProvider = NotifierProvider<TaskTitleNotifier, String>(() {
   return TaskTitleNotifier();
 });
 
+class TaskFilterNotifier extends Notifier<String> {
+  @override
+  String build() => 'All';
+
+  void setFilter(String filter) {
+    state = filter;
+  }
+}
+
+final taskFilterProvider = NotifierProvider<TaskFilterNotifier, String>(() {
+  return TaskFilterNotifier();
+});
+
 class TaskScreenState {
   final List<dynamic> tasks;
   final int currentPage;

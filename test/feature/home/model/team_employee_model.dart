@@ -3,14 +3,12 @@ class TeamEmployee {
   final String name;
   final String? image;
   final List<TeamEmployee> team;
-
   TeamEmployee({
     required this.id,
     required this.name,
     this.image,
     required this.team,
   });
-
   factory TeamEmployee.fromJson(Map<String, dynamic> json) {
     return TeamEmployee(
       id: json['id'] is int
@@ -23,7 +21,6 @@ class TeamEmployee {
           : [],
     );
   }
-
   Map<String, dynamic> toJson() {
     return {
       'id': id,
