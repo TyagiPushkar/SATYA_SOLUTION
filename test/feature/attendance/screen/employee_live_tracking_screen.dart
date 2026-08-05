@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../provider/field_visit_provider.dart';
+import '../provider/field_visit_state.dart';
 import 'monthly_records_screen.dart';
 
 enum TimelineItemType { punchIn, punchOut, travelled, stoppage, task }
@@ -180,6 +182,103 @@ class _EmployeeLiveTrackingScreenState
 
   // fetchFieldVisits and _fetchRoadRoute now in FieldVisitNotifier (fieldVisitProvider)
 
+  double _calculateBearing(LatLng start, LatLng end) {
+    final startLat = start.latitudeInRad;
+    final startLng = start.longitudeInRad;
+    final endLat = end.latitudeInRad;
+    final endLng = end.longitudeInRad;
+
+    final dLng = endLng - startLng;
+
+    final y = math.sin(dLng) * math.cos(endLat);
+    final x = math.cos(startLat) * math.sin(endLat) -
+        math.sin(startLat) * math.cos(endLat) * math.cos(dLng);
+
+    final bearing = math.atan2(y, x);
+    return (bearing * 180 / math.pi + 360) % 360;
+  }
+
+  List<Marker> _buildDirectionArrowMarkers(List<LatLng> points) {
+    if (points.length < 2) return [];
+    List<Marker> arrowMarkers = [];
+
+    const double minDistanceMeters = 60.0;
+    LatLng lastPlacedPt = points.first;
+
+    for (int i = 0; i < points.length - 1; i++) {
+      final p1 = points[i];
+      final p2 = points[i + 1];
+      final dist = const Distance().as(LengthUnit.Meter, p1, p2);
+
+      if (dist > 5.0) {
+        final distFromLast =
+            const Distance().as(LengthUnit.Meter, lastPlacedPt, p2);
+        if (i == 0 || distFromLast >= minDistanceMeters) {
+          lastPlacedPt = p2;
+          final bearing = _calculateBearing(p1, p2);
+
+          final midLat = (p1.latitude + p2.latitude) / 2;
+          final midLng = (p1.longitude + p2.longitude) / 2;
+          final midPoint = LatLng(midLat, midLng);
+
+          arrowMarkers.add(
+            Marker(
+              point: midPoint,
+              width: 22,
+              height: 22,
+              child: Transform.rotate(
+                angle: bearing * (math.pi / 180),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0038A8),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 3,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.navigation,
+                    color: Colors.white,
+                    size: 13,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+      }
+    }
+    return arrowMarkers;
+  }
+
+  void _fitMapBounds() {
+    final visitState = ref.read(fieldVisitProvider);
+    final points = visitState.fieldVisitRoutePoints.isNotEmpty
+        ? visitState.fieldVisitRoutePoints
+        : visitState.rawVisitPoints;
+
+    if (points.isNotEmpty) {
+      if (points.length == 1) {
+        _mapController.move(points.first, 16.0);
+      } else {
+        final bounds = LatLngBounds.fromPoints(points);
+        _mapController.fitCamera(
+          CameraFit.bounds(
+            bounds: bounds,
+            padding: const EdgeInsets.all(60),
+          ),
+        );
+      }
+    } else if (_currentLocation != null) {
+      _mapController.move(_currentLocation!, 16.0);
+    }
+  }
+
   List<Marker> _buildRouteMarkers() {
     final visitState = ref.read(fieldVisitProvider);
     final rawPts = visitState.rawVisitPoints.isNotEmpty
@@ -188,6 +287,9 @@ class _EmployeeLiveTrackingScreenState
     if (rawPts.isEmpty) return [];
 
     List<Marker> markers = [];
+
+    // Directional Arrow Markers along polyline route
+    markers.addAll(_buildDirectionArrowMarkers(rawPts));
 
     // Start Marker (Green Pin) at exact raw user start location
     markers.add(
@@ -445,6 +547,16 @@ class _EmployeeLiveTrackingScreenState
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<FieldVisitState>(fieldVisitProvider, (prev, next) {
+      if (prev?.isLoading == true &&
+          !next.isLoading &&
+          (next.fieldVisitRoutePoints.isNotEmpty ||
+              next.rawVisitPoints.isNotEmpty)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _fitMapBounds();
+        });
+      }
+    });
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -912,7 +1024,7 @@ class _EmployeeLiveTrackingScreenState
                     const Divider(height: 1, thickness: 1),
                     _buildMapControlIconButton(Icons.fullscreen, () {}),
                     const Divider(height: 1, thickness: 1),
-                    _buildMapControlIconButton(Icons.alt_route, () {}),
+                    _buildMapControlIconButton(Icons.alt_route, _fitMapBounds),
                   ],
                 ),
               ),
@@ -971,6 +1083,8 @@ class _EmployeeLiveTrackingScreenState
               ),
             MarkerLayer(
               markers: [
+                // Direction Arrow Markers along polyline route
+                ..._buildDirectionArrowMarkers(activeRoutePoints),
                 // Start marker (green)
                 if (activeRoutePoints.isNotEmpty)
                   Marker(
@@ -1150,6 +1264,8 @@ class _EmployeeLiveTrackingScreenState
                     }),
                     const Divider(height: 1, thickness: 1),
                     _buildMapControlIconButton(Icons.fullscreen, () {}),
+                    const Divider(height: 1, thickness: 1),
+                    _buildMapControlIconButton(Icons.alt_route, _fitMapBounds),
                     const Divider(height: 1, thickness: 1),
                     _buildMapControlIconButton(
                       Icons.tune,

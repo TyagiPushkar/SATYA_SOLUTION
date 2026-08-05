@@ -4,7 +4,6 @@ class ApiEndpoints {
   // static const String baseUrl = 'http://192.168.1.11:5000/api/v1';
 
   static const String baseUrl = 'https://www.namami-infotech.com/satya/api/v1';
-
   static const String login = '/employees/login';
   static const String logout = '/employees/logout';
   static const String profile = '/profile';
@@ -12,7 +11,8 @@ class ApiEndpoints {
   static const String homeStats = '/dashboard/home-stats';
   static const String clockIn = '/attendance/clock-in';
   static const String clockOut = '/attendance/clock-out';
-  static const String allEmployeeAttendance = '/attendance/all-employee-attendance';
+  static const String allEmployeeAttendance =
+      '/attendance/all-employee-attendance';
   static const String createCustomer = '/customers/create';
   static const String getCustomers = '/customers/get-all';
   static const String getCreateTaskForm = '/tasks/create-form';
@@ -44,6 +44,6 @@ class ApiEndpoints {
 
 
 
-
+ 
 
 //Board of High School and Intermediate Education Uttar Pradesh
