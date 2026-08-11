@@ -109,7 +109,7 @@ class ProfileScreen extends ConsumerWidget {
                       backgroundColor: Colors.grey.shade100,
                       backgroundImage:
                           (user?.image != null && user!.image!.isNotEmpty)
-                              ? NetworkImage(user.image!)
+                              ? ResizeImage(NetworkImage(user.image!), width: 300, height: 300)
                               : null,
                       child: (user?.image == null || user!.image!.isEmpty)
                           ? ShaderMask(

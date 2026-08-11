@@ -21,6 +21,7 @@ class BackgroundLocationService {
         autoStart: false,
         autoStartOnBoot: true,
         isForegroundMode: true,
+        notificationChannelId: 'field_visit_location_channel',
         initialNotificationTitle: 'Field Visit Tracking Active',
         initialNotificationContent:
             'Streaming location updates in background until Punch Out',

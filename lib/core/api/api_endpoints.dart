@@ -1,7 +1,7 @@
 class ApiEndpoints {
   // static const String baseUrl =
   //     'https://namamibackend-1namamibackend.onrender.com/api/v1';
-  // static const String baseUrl = 'http://192.168.1.11:5000/api/v1';
+  //static const String baseUrl = 'http://192.168.1.14:5000/api/v1';
 
   static const String baseUrl = 'https://www.namami-infotech.com/satya/api/v1';
   static const String login = '/employees/login';
@@ -35,9 +35,9 @@ class ApiEndpoints {
   static String get socketUrl {
     try {
       final uri = Uri.parse(baseUrl);
-      return '${uri.scheme}://${uri.host}:${uri.port}'; //abcdefgA1234@
+      return uri.origin;
     } catch (_) {
-      return 'https://namamibackend-1namamibackend.onrender.com';
+      return 'https://www.namami-infotech.com';
     }
   }
 }

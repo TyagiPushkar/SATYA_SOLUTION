@@ -191,11 +191,11 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       final title = ref.read(taskTitleProvider);
-      if (title == 'Customer Tasks') {
+      if (title == 'Customers' || title == 'Customer List') {
         ref
             .read(customerScreenProvider.notifier)
             .fetchCustomers(refresh: false);
-      } else if (title == 'All Employees') {
+      } else if (title == 'All Employees' || title == 'All Employee') {
         ref.read(employeeListProvider.notifier).fetchEmployees(refresh: false);
       } else {
         ref.read(taskScreenProvider.notifier).fetchTasks(refresh: false);
@@ -286,9 +286,10 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
       return perms.task.taskAll.add;
     } else if (cleanTitle == 'team task' || cleanTitle == 'team tasks') {
       return perms.task.teamTask.add;
-    } else if (cleanTitle == 'customer task' ||
-        cleanTitle == 'customer tasks') {
+    } else if (cleanTitle == 'customer task' || cleanTitle == 'customer tasks') {
       return perms.task.taskCustomer.add;
+    } else if (cleanTitle == 'customers' || cleanTitle == 'customer list') {
+      return perms.customer.add;
     } else if (cleanTitle == 'deleted tasks' || cleanTitle == 'deleted task') {
       return perms.task.deletedTasks.add;
     } else if (cleanTitle == 'onboarding task' ||
@@ -307,8 +308,7 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
     ref.listen<int>(mainScreenTabProvider, (previous, next) {
       if (next == 1) {
         final currentTitle = ref.read(taskTitleProvider);
-        if (currentTitle == 'Customer Tasks' ||
-            currentTitle == 'Customer Task') {
+        if (currentTitle == 'Customers' || currentTitle == 'Customer List') {
           ref
               .read(customerScreenProvider.notifier)
               .fetchCustomers(refresh: true);
@@ -328,8 +328,7 @@ class _TaskScreenState extends ConsumerState<TaskScreen> {
     final permAsync = ref.watch(permissionProvider);
     final perms = permAsync.value;
 
-    final isCustomerMode =
-        title == 'Customer Tasks' || title == 'Customer Task';
+    final isCustomerMode = title == 'Customers' || title == 'Customer List';
     final isEmployeeMode = title == 'All Employees' || title == 'All Employee';
 
     final canAdd = _canAddForCurrentTab(perms, title);

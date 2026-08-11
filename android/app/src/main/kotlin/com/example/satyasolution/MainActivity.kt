@@ -1,10 +1,6 @@
 package com.example.satyasolution
 
-import io.flutter.embedding.android.FlutterActivity
-import io.flutter.embedding.android.RenderMode
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity() {
-    override fun getRenderMode(): RenderMode {
-        return RenderMode.texture
-    }
-}
+class MainActivity : FlutterFragmentActivity()
+

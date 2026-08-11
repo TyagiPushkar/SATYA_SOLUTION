@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/custom_app_bar.dart';
@@ -897,6 +896,8 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                 ),
                 child: Image.network(
                   taskData['houseImage'] ?? "",
+                  cacheWidth: 400,
+                  cacheHeight: 400,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
                     return const Icon(Icons.person);

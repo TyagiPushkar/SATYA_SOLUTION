@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -18,13 +19,16 @@ class CompleteTaskHelper {
   static Future<void> checkLostData(WidgetRef ref) async {
     try {
       final response = await _imagePicker.retrieveLostData();
-      if (response.isEmpty || response.file == null) return;
-      final image = response.file!;
       final prefs = await SharedPreferences.getInstance();
+      if (response.isEmpty || response.file == null) {
+        await prefs.remove('last_picked_field');
+        return;
+      }
+      final image = response.file!;
       final fieldName = prefs.getString('last_picked_field');
       if (fieldName != null && fieldName.isNotEmpty) {
         final notifier = ref.read(completeTaskFormStateProvider.notifier);
-        notifier.setControllerValue(fieldName, image.name);
+        notifier.setControllerValue(fieldName, image.path);
         await prefs.remove('last_picked_field');
       }
     } catch (e) {
@@ -42,6 +46,8 @@ class CompleteTaskHelper {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('last_picked_field', fieldName);
     } catch (_) {}
+
+    if (!context.mounted) return;
 
     ImageSource? source = preferredSource;
 
@@ -91,6 +97,7 @@ class CompleteTaskHelper {
     );
 
     if (source == null) return;
+    if (!context.mounted) return;
 
     try {
       final XFile? image = await _imagePicker.pickImage(
@@ -101,9 +108,9 @@ class CompleteTaskHelper {
       );
       if (image != null) {
         final notifier = ref.read(completeTaskFormStateProvider.notifier);
-        notifier.setControllerValue(fieldName, image.name);
+        notifier.setControllerValue(fieldName, image.path);
         if (context.mounted) {
-          AppSnackbar.show(context, 'Image captured: ${image.name}');
+          AppSnackbar.show(context, 'Image captured successfully');
         }
       }
     } catch (e) {
@@ -114,6 +121,11 @@ class CompleteTaskHelper {
           isError: true,
         );
       }
+    } finally {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('last_picked_field');
+      } catch (_) {}
     }
   }
 
@@ -199,15 +211,45 @@ class CompleteTaskHelper {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) return;
       }
+
+      notifier.setControllerValue(fieldName, 'Fetching address...');
+
       Position pos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
         ),
       );
-      notifier.setControllerValue(
-        fieldName,
-        '${pos.latitude.toStringAsFixed(4)}° N, ${pos.longitude.toStringAsFixed(4)}° E',
-      );
+
+      String address =
+          '${pos.latitude.toStringAsFixed(4)}° N, ${pos.longitude.toStringAsFixed(4)}° E';
+
+      try {
+        final dio = Dio();
+        final response = await dio.get(
+          'https://nominatim.openstreetmap.org/reverse',
+          queryParameters: {
+            'lat': pos.latitude,
+            'lon': pos.longitude,
+            'format': 'json',
+          },
+          options: Options(
+            headers: {
+              'User-Agent':
+                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            },
+          ),
+        );
+        if (response.data != null && response.data['display_name'] != null) {
+          final String fetchedAddress = response.data['display_name'].toString();
+          if (fetchedAddress.trim().isNotEmpty) {
+            address = fetchedAddress;
+          }
+        }
+      } catch (e) {
+        debugPrint('Reverse geocode error: $e');
+      }
+
+      notifier.setControllerValue(fieldName, address);
     } catch (e) {
       debugPrint('Location error: $e');
     }
@@ -226,10 +268,15 @@ class CompleteTaskHelper {
     if (!context.mounted) return;
 
     if (success) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('last_picked_field');
+      } catch (_) {}
+      if (!context.mounted) return;
       AppSnackbar.show(context, 'Task completed successfully!');
-      ref.invalidate(taskScreenProvider);
-      ref.read(mainScreenTabProvider.notifier).setTab(1);
       ref.read(taskTitleProvider.notifier).setTitle('All Task');
+      ref.read(taskScreenProvider.notifier).fetchTasks(refresh: true);
+      ref.read(mainScreenTabProvider.notifier).setTab(1);
       context.go('/home');
     } else {
       final errorMsg =

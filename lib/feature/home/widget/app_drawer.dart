@@ -283,121 +283,200 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                   items.add(const Divider(height: 1));
                 }
 
-                // Role / Admin / Leave / Branch / Holiday / Reports / Department / Designation
-                if (perms.admin.role.hasAnyAccess) {
+                // Customers
+                if (perms.customer.hasAnyAccess) {
                   items.add(
                     ListTile(
                       leading: const Icon(
-                        Icons.security,
+                        Icons.people_outline,
                         color: AppColors.primary,
                       ),
-                      title: AppText('Role', fontWeight: FontWeight.bold),
+                      title: AppText('Customers', fontWeight: FontWeight.bold),
                       trailing: const Icon(Icons.chevron_right),
-                      onTap: () => Navigator.pop(context),
+                      onTap: () {
+                        ref
+                            .read(taskTitleProvider.notifier)
+                            .setTitle('Customers');
+                        Navigator.pop(context);
+                        ref
+                            .read(mainScreenTabProvider.notifier)
+                            .setTab(1);
+                      },
                     ),
                   );
                   items.add(const Divider(height: 1));
                 }
-                if (perms.admin.hasAnyAccess) {
-                  items.add(
-                    ListTile(
-                      leading: const Icon(
-                        Icons.admin_panel_settings,
-                        color: AppColors.primary,
+
+                // Admin
+                if (perms.admin.hasAnyAccess || userRole.toLowerCase().contains('admin')) {
+                  final adminChildren = <Widget>[];
+                  final showAllAdmin = userRole.toLowerCase().contains('admin');
+
+                  if (showAllAdmin || perms.admin.role.hasAnyAccess) {
+                    adminChildren.add(
+                      ListTile(
+                        contentPadding: const EdgeInsets.only(left: 72),
+                        title: AppText('Role', fontWeight: FontWeight.w500),
+                        onTap: () => Navigator.pop(context),
                       ),
-                      title: AppText('Admin', fontWeight: FontWeight.bold),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => Navigator.pop(context),
-                    ),
-                  );
-                  items.add(const Divider(height: 1));
-                }
-                if (perms.admin.leave.hasAnyAccess) {
-                  items.add(
-                    ListTile(
-                      leading: const Icon(
-                        Icons.time_to_leave,
-                        color: AppColors.primary,
+                    );
+                  }
+                  if (showAllAdmin ||
+                      perms.admin.leave.hasAnyAccess ||
+                      perms.admin.leavesettingsLeave.hasAnyAccess) {
+                    adminChildren.add(
+                      ListTile(
+                        contentPadding: const EdgeInsets.only(left: 72),
+                        title: AppText('Leave', fontWeight: FontWeight.w500),
+                        onTap: () => Navigator.pop(context),
                       ),
-                      title: AppText('Leave', fontWeight: FontWeight.bold),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => Navigator.pop(context),
-                    ),
-                  );
-                  items.add(const Divider(height: 1));
-                }
-                if (perms.admin.branch.hasAnyAccess) {
-                  items.add(
-                    ListTile(
-                      leading: const Icon(
-                        Icons.domain,
-                        color: AppColors.primary,
+                    );
+                  }
+                  if (showAllAdmin || perms.admin.branch.hasAnyAccess) {
+                    adminChildren.add(
+                      ListTile(
+                        contentPadding: const EdgeInsets.only(left: 72),
+                        title: AppText('Branch', fontWeight: FontWeight.w500),
+                        onTap: () => Navigator.pop(context),
                       ),
-                      title: AppText('Branch', fontWeight: FontWeight.bold),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => Navigator.pop(context),
-                    ),
-                  );
-                  items.add(const Divider(height: 1));
-                }
-                if (perms.admin.holidays.hasAnyAccess) {
-                  items.add(
-                    ListTile(
-                      leading: const Icon(
-                        Icons.beach_access,
-                        color: AppColors.primary,
+                    );
+                  }
+                  if (showAllAdmin ||
+                      perms.admin.holidays.hasAnyAccess ||
+                      perms.admin.leavesettingsHolidays.hasAnyAccess) {
+                    adminChildren.add(
+                      ListTile(
+                        contentPadding: const EdgeInsets.only(left: 72),
+                        title: AppText('Holiday', fontWeight: FontWeight.w500),
+                        onTap: () => Navigator.pop(context),
                       ),
-                      title: AppText('Holiday', fontWeight: FontWeight.bold),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => Navigator.pop(context),
-                    ),
-                  );
-                  items.add(const Divider(height: 1));
-                }
-                if (perms.admin.reports.hasAnyAccess) {
-                  items.add(
-                    ListTile(
-                      leading: const Icon(
-                        Icons.bar_chart,
-                        color: AppColors.primary,
+                    );
+                  }
+                  if (showAllAdmin || perms.admin.reports.hasAnyAccess) {
+                    adminChildren.add(
+                      ListTile(
+                        contentPadding: const EdgeInsets.only(left: 72),
+                        title: AppText('Reports', fontWeight: FontWeight.w500),
+                        onTap: () => Navigator.pop(context),
                       ),
-                      title: AppText('Reports', fontWeight: FontWeight.bold),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => Navigator.pop(context),
-                    ),
-                  );
-                  items.add(const Divider(height: 1));
-                }
-                if (perms.admin.department.hasAnyAccess) {
-                  items.add(
-                    ListTile(
-                      leading: const Icon(
-                        Icons.business,
-                        color: AppColors.primary,
+                    );
+                  }
+                  if (showAllAdmin || perms.admin.department.hasAnyAccess) {
+                    adminChildren.add(
+                      ListTile(
+                        contentPadding: const EdgeInsets.only(left: 72),
+                        title: AppText('Department', fontWeight: FontWeight.w500),
+                        onTap: () => Navigator.pop(context),
                       ),
-                      title: AppText('Department', fontWeight: FontWeight.bold),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => Navigator.pop(context),
-                    ),
-                  );
-                  items.add(const Divider(height: 1));
-                }
-                if (perms.admin.designation.hasAnyAccess) {
-                  items.add(
-                    ListTile(
-                      leading: const Icon(
-                        Icons.badge,
-                        color: AppColors.primary,
+                    );
+                  }
+                  if (showAllAdmin || perms.admin.designation.hasAnyAccess) {
+                    adminChildren.add(
+                      ListTile(
+                        contentPadding: const EdgeInsets.only(left: 72),
+                        title: AppText('Designation', fontWeight: FontWeight.w500),
+                        onTap: () => Navigator.pop(context),
                       ),
-                      title: AppText(
-                        'Designation',
-                        fontWeight: FontWeight.bold,
+                    );
+                  }
+                  if (showAllAdmin || perms.admin.state.hasAnyAccess) {
+                    adminChildren.add(
+                      ListTile(
+                        contentPadding: const EdgeInsets.only(left: 72),
+                        title: AppText('State', fontWeight: FontWeight.w500),
+                        onTap: () => Navigator.pop(context),
                       ),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => Navigator.pop(context),
-                    ),
-                  );
-                  items.add(const Divider(height: 1));
+                    );
+                  }
+                  if (showAllAdmin || perms.admin.region.hasAnyAccess) {
+                    adminChildren.add(
+                      ListTile(
+                        contentPadding: const EdgeInsets.only(left: 72),
+                        title: AppText('Region', fontWeight: FontWeight.w500),
+                        onTap: () => Navigator.pop(context),
+                      ),
+                    );
+                  }
+                  if (showAllAdmin || perms.admin.tasktype.hasAnyAccess) {
+                    adminChildren.add(
+                      ListTile(
+                        contentPadding: const EdgeInsets.only(left: 72),
+                        title: AppText('Task Type', fontWeight: FontWeight.w500),
+                        onTap: () => Navigator.pop(context),
+                      ),
+                    );
+                  }
+                  if (showAllAdmin ||
+                      perms.admin.leaveType.hasAnyAccess ||
+                      perms.admin.leavesettingsLeaveType.hasAnyAccess) {
+                    adminChildren.add(
+                      ListTile(
+                        contentPadding: const EdgeInsets.only(left: 72),
+                        title: AppText('Leave Type', fontWeight: FontWeight.w500),
+                        onTap: () => Navigator.pop(context),
+                      ),
+                    );
+                  }
+                  if (showAllAdmin ||
+                      perms.admin.nonworking.hasAnyAccess ||
+                      perms.admin.leavesettingsNonworking.hasAnyAccess) {
+                    adminChildren.add(
+                      ListTile(
+                        contentPadding: const EdgeInsets.only(left: 72),
+                        title: AppText('Non Working', fontWeight: FontWeight.w500),
+                        onTap: () => Navigator.pop(context),
+                      ),
+                    );
+                  }
+                  if (showAllAdmin ||
+                      perms.admin.leaveprofile.hasAnyAccess ||
+                      perms.admin.leavesettingsLeaveprofile.hasAnyAccess) {
+                    adminChildren.add(
+                      ListTile(
+                        contentPadding: const EdgeInsets.only(left: 72),
+                        title: AppText('Leave Profile', fontWeight: FontWeight.w500),
+                        onTap: () => Navigator.pop(context),
+                      ),
+                    );
+                  }
+
+                  // Fallback: If perms.admin.hasAnyAccess is true but no specific sub-permission matched in JSON, display standard admin sub-items
+                  if (adminChildren.isEmpty && perms.admin.hasAnyAccess) {
+                    final defaultSubItems = [
+                      'Role',
+                      'Leave',
+                      'Branch',
+                      'Holiday',
+                      'Reports',
+                      'Department',
+                      'Designation',
+                    ];
+                    for (final itemTitle in defaultSubItems) {
+                      adminChildren.add(
+                        ListTile(
+                          contentPadding: const EdgeInsets.only(left: 72),
+                          title: AppText(itemTitle, fontWeight: FontWeight.w500),
+                          onTap: () => Navigator.pop(context),
+                        ),
+                      );
+                    }
+                  }
+
+                  if (adminChildren.isNotEmpty) {
+                    items.add(
+                      ExpansionTile(
+                        leading: const Icon(
+                          Icons.admin_panel_settings,
+                          color: AppColors.primary,
+                        ),
+                        title: AppText('Admin', fontWeight: FontWeight.bold),
+                        iconColor: AppColors.primary,
+                        collapsedIconColor: Colors.black54,
+                        children: adminChildren,
+                      ),
+                    );
+                    items.add(const Divider(height: 1));
+                  }
                 }
 
                 // Feeds

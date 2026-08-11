@@ -134,7 +134,7 @@ class _SphereNode extends StatelessWidget {
               shape: BoxShape.circle,
               image: hasImage
                   ? DecorationImage(
-                      image: NetworkImage(employee.image!),
+                      image: ResizeImage(NetworkImage(employee.image!), width: 200, height: 200),
                       fit: BoxFit.cover,
                     )
                   : null,

@@ -524,6 +524,8 @@ class _CreateEmployeeScreenState extends ConsumerState<CreateEmployeeScreen> {
                             File(filePath),
                             width: 44,
                             height: 44,
+                            cacheWidth: 200,
+                            cacheHeight: 200,
                             fit: BoxFit.cover,
                             errorBuilder: (ctx, err, st) => Container(
                               width: 44,

@@ -13,9 +13,8 @@ class FieldVisitNotifier extends Notifier<FieldVisitState> {
     return const FieldVisitState();
   }
 
-  /// Fetch field visits from API for given employee + date
   Future<void> fetchFieldVisits(int empId, String date) async {
-    state = state.copyWith(isLoading: true, clearError: true);
+    state = const FieldVisitState(isLoading: true);
 
     try {
       final apiService = ref.read(apiServiceProvider);
@@ -64,7 +63,7 @@ class FieldVisitNotifier extends Notifier<FieldVisitState> {
                     lastSavedPt,
                     pt,
                   );
-                  // Ignore points less than 3 meters away unless it's a stoppage
+
                   if (dist < 3.0 && timeVal == 0) {
                     keep = false;
                   }
@@ -75,7 +74,7 @@ class FieldVisitNotifier extends Notifier<FieldVisitState> {
                   lastSavedPt = pt;
 
                   fetchedPoints.add(pt);
-                  // Capture timestamp from createdAt or timestamp field
+    
                   final ts =
                       loc['createdAt']?.toString() ??
                       loc['created_at']?.toString() ??
@@ -97,28 +96,8 @@ class FieldVisitNotifier extends Notifier<FieldVisitState> {
           cleanedVisits.add(visitMap);
         }
 
-        if (fetchedPoints.isEmpty) {
-          // Fallback sample route points around Prayagraj Junction area so direction and polylines are always shown
-          final samplePoints = [
-            const LatLng(25.4430, 81.8260),
-            const LatLng(25.4450, 81.8285),
-            const LatLng(25.4482, 81.8320),
-            const LatLng(25.4510, 81.8365),
-            const LatLng(25.4545, 81.8410),
-          ];
-          fetchedPoints.addAll(samplePoints);
-          timestamps.addAll([
-            '2026-08-05T09:00:00Z',
-            '2026-08-05T09:15:00Z',
-            '2026-08-05T09:30:00Z',
-            '2026-08-05T09:45:00Z',
-            '2026-08-05T10:00:00Z',
-          ]);
-          speeds.addAll([15.0, 22.5, 30.0, 25.0, 18.0]);
-        }
-
         if (fetchedPoints.isNotEmpty) {
-          // Calculate speeds from consecutive points if API returns 0
+
           for (int i = 1; i < fetchedPoints.length; i++) {
             if (speeds[i] == 0.0) {
               final dist = const Distance().as(
