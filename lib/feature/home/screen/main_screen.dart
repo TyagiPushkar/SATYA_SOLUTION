@@ -72,6 +72,7 @@ class MainScreen extends ConsumerWidget {
             ),
           ],
         ),
+        
         child: BottomNavigationBar(
           currentIndex: currentIndex,
           onTap: (index) {

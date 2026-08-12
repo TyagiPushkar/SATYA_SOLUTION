@@ -43,14 +43,9 @@ class HomeContent extends ConsumerWidget {
                   children: [
                     _buildHeaderAndPunchSection(context, ref),
                     const SizedBox(height: 16),
+                    _buildTaskCard('Amount Collection - Today', context, ref),
+                    const SizedBox(height: 16),
                     _buildTaskCard('Task - Today', context, ref),
-                    const SizedBox(height: 16),
-                    _buildTodayTaskList(context, ref),
-                    const SizedBox(height: 16),
-
-                    // _buildTaskCard('Task- Month-to-date'),
-                    // const SizedBox(height: 16),
-                    // _buildChartCard(ref),
                   ],
                 ),
               ),
@@ -338,13 +333,25 @@ class HomeContent extends ConsumerWidget {
     return '$timeStr, $day $monthStr $year';
   }
 
+  static String _formatAmountValue(num amount) {
+    if (amount == 0) return '₹ 0';
+    final isInt = amount is int || amount == amount.roundToDouble();
+    final formatted = isInt
+        ? amount.toInt().toString()
+        : amount.toStringAsFixed(2);
+    return '₹ $formatted';
+  }
+
   Widget _buildTaskCard(String title, BuildContext context, WidgetRef ref) {
     final homeState = ref.watch(homeProvider);
     final taskMetrics = homeState.data?.taskMetrics;
-    if (homeState.isLoading && taskMetrics == null) {
+    final amountMetrics = homeState.data?.amountMetrics;
+    if (homeState.isLoading && taskMetrics == null && amountMetrics == null) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (homeState.error != null && taskMetrics == null) {
+    if (homeState.error != null &&
+        taskMetrics == null &&
+        amountMetrics == null) {
       return Center(child: Text(homeState.error ?? 'Error loading data'));
     }
     final total = taskMetrics?.total ?? 0;
@@ -354,6 +361,35 @@ class HomeContent extends ConsumerWidget {
     final completedPercent = taskMetrics?.completedPercentage ?? 0;
     final inProgressPercent = taskMetrics?.inProgressPercentage ?? 0;
     final pendingPercent = taskMetrics?.pendingPercentage ?? 0;
+
+    final isAmountCard = title.toLowerCase().contains('amount collection');
+
+    final labelAll = isAmountCard ? 'Total Amount' : 'All Task';
+    final labelCompleted = isAmountCard ? 'Collect Amount' : 'Completed';
+    final labelInProgress = 'In Progress';
+    final labelPending = isAmountCard ? 'Pending Amount' : 'Pending';
+
+    final totalAmt = amountMetrics?.total ?? taskMetrics?.totalAmount ?? 0;
+    final completedAmt =
+        amountMetrics?.completed ?? taskMetrics?.completedAmount ?? 0;
+    final inProgressAmt =
+        amountMetrics?.inProgress ?? taskMetrics?.inProgressAmount ?? 0;
+    final pendingAmt =
+        amountMetrics?.pending ?? taskMetrics?.pendingAmount ?? 0;
+
+    final subAll = isAmountCard
+        ? _formatAmountValue(totalAmt)
+        : '$total out of $total';
+    final subCompleted = isAmountCard
+        ? _formatAmountValue(completedAmt)
+        : '$completed out of $total';
+    final subInProgress = isAmountCard
+        ? _formatAmountValue(inProgressAmt)
+        : '$inProgress out of $total';
+    final subPending = isAmountCard
+        ? _formatAmountValue(pendingAmt)
+        : '$pending out of $total';
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -381,27 +417,35 @@ class HomeContent extends ConsumerWidget {
               children: [
                 Expanded(
                   child: _buildTaskStatBox(
-                    'All Task',
-                    '$total out of $total',
+                    labelAll,
+                    subAll,
                     100,
-                    () {
-                      ref.read(taskFilterProvider.notifier).setFilter('All');
-                      ref.read(mainScreenTabProvider.notifier).setTab(1);
-                    },
+                    isAmountCard
+                        ? null
+                        : () {
+                            ref
+                                .read(taskFilterProvider.notifier)
+                                .setFilter('All');
+                            ref.read(mainScreenTabProvider.notifier).setTab(1);
+                          },
+                    showPercentage: !isAmountCard,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildTaskStatBox(
-                    'Completed',
-                    '$completed out of $total',
+                    labelCompleted,
+                    subCompleted,
                     completedPercent,
-                    () {
-                      ref
-                          .read(taskFilterProvider.notifier)
-                          .setFilter('Completed');
-                      ref.read(mainScreenTabProvider.notifier).setTab(1);
-                    },
+                    isAmountCard
+                        ? null
+                        : () {
+                            ref
+                                .read(taskFilterProvider.notifier)
+                                .setFilter('Completed');
+                            ref.read(mainScreenTabProvider.notifier).setTab(1);
+                          },
+                    showPercentage: !isAmountCard,
                   ),
                 ),
               ],
@@ -413,29 +457,35 @@ class HomeContent extends ConsumerWidget {
               children: [
                 Expanded(
                   child: _buildTaskStatBox(
-                    'In Progress',
-                    '$inProgress out of $total',
+                    labelInProgress,
+                    subInProgress,
                     inProgressPercent,
-                    () {
-                      ref
-                          .read(taskFilterProvider.notifier)
-                          .setFilter('In Progress');
-                      ref.read(mainScreenTabProvider.notifier).setTab(1);
-                    },
+                    isAmountCard
+                        ? null
+                        : () {
+                            ref
+                                .read(taskFilterProvider.notifier)
+                                .setFilter('In Progress');
+                            ref.read(mainScreenTabProvider.notifier).setTab(1);
+                          },
+                    showPercentage: !isAmountCard,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildTaskStatBox(
-                    'Pending',
-                    '$pending out of $total',
+                    labelPending,
+                    subPending,
                     pendingPercent,
-                    () {
-                      ref
-                          .read(taskFilterProvider.notifier)
-                          .setFilter('Pending');
-                      ref.read(mainScreenTabProvider.notifier).setTab(1);
-                    },
+                    isAmountCard
+                        ? null
+                        : () {
+                            ref
+                                .read(taskFilterProvider.notifier)
+                                .setFilter('Pending');
+                            ref.read(mainScreenTabProvider.notifier).setTab(1);
+                          },
+                    showPercentage: !isAmountCard,
                   ),
                 ),
               ],
@@ -450,30 +500,30 @@ class HomeContent extends ConsumerWidget {
     String title,
     String subtitle,
     int percentage,
-    VoidCallback onTap,
-  ) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(4),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                AppText(
-                  title,
-                  fontSize: 13,
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-                const SizedBox(height: 4),
+    VoidCallback? onTap, {
+    bool showPercentage = true,
+  }) {
+    final hasOutOf = subtitle.contains(' out of ');
+    final cardContent = Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppText(
+                title,
+                fontSize: 13,
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
+              const SizedBox(height: 4),
+              if (hasOutOf)
                 Row(
                   children: [
                     AppText(
@@ -488,9 +538,17 @@ class HomeContent extends ConsumerWidget {
                       color: Colors.grey.shade700,
                     ),
                   ],
+                )
+              else
+                AppText(
+                  subtitle,
+                  fontSize: 13,
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
                 ),
-              ],
-            ),
+            ],
+          ),
+          if (showPercentage)
             Stack(
               alignment: Alignment.center,
               children: [
@@ -514,9 +572,18 @@ class HomeContent extends ConsumerWidget {
                 ),
               ],
             ),
-          ],
-        ),
+        ],
       ),
+    );
+
+    if (onTap == null) {
+      return cardContent;
+    }
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: cardContent,
     );
   }
 
@@ -586,504 +653,6 @@ class HomeContent extends ConsumerWidget {
     } catch (_) {
       return dateStr;
     }
-  }
-
-  Widget _buildTodayTaskList(BuildContext context, WidgetRef ref) {
-    final empTaskState = ref.watch(employeeTasksProvider);
-
-    if (empTaskState.isLoading && empTaskState.tasks.isEmpty) {
-      return Column(
-        children: List.generate(
-          3,
-          (_) => Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            height: 80,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: const Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (empTaskState.error != null && empTaskState.tasks.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Column(
-          children: [
-            Icon(Icons.error_outline, color: Colors.red.shade300, size: 40),
-            const SizedBox(height: 8),
-            AppText(
-              'Failed to load tasks',
-              fontSize: 13,
-              color: Colors.grey.shade600,
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () {
-                ref.read(employeeTasksProvider.notifier).fetchEmployeeTasks();
-              },
-              child: const AppText(
-                'Retry',
-                fontSize: 13,
-                color: AppColors.primary,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (empTaskState.tasks.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Column(
-          children: [
-            Icon(Icons.task_outlined, color: Colors.grey.shade400, size: 40),
-            const SizedBox(height: 8),
-            AppText(
-              'No tasks for today',
-              fontSize: 14,
-              color: Colors.grey.shade500,
-              fontWeight: FontWeight.w500,
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            AppText(
-              'Today\'s Tasks (${empTaskState.tasks.length})',
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-            GestureDetector(
-              onTap: () {
-                ref.read(taskFilterProvider.notifier).setFilter('All');
-                ref.read(mainScreenTabProvider.notifier).setTab(1);
-              },
-              child: const AppText(
-                'View All',
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primary,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        ...empTaskState.tasks.map((rawTask) {
-          final Map<String, dynamic> task = rawTask is Map
-              ? Map<String, dynamic>.from(rawTask)
-              : {};
-
-          final taskId = _safeStr(task['task_id'], fallback: '');
-          final description = _safeStr(
-            task['description'],
-            fallback: 'No description',
-          );
-          final status = _safeStr(task['status'], fallback: 'pending');
-          final priority = _safeStr(task['priority'], fallback: 'normal');
-          final statusColor = _getTaskStatusColor(status);
-          final priorityColor = _getPriorityColor(priority);
-
-          // Assignee name
-          String assigneeName = 'Unassigned';
-          if (task['assigneeToEmployeeId'] is Map) {
-            assigneeName = _safeStr(
-              (task['assigneeToEmployeeId'] as Map)['name'],
-              fallback: 'Unassigned',
-            );
-          }
-
-          // Task type
-          String taskType = 'General';
-          if (task['taskType'] is Map) {
-            taskType = _safeStr(
-              (task['taskType'] as Map)['name'],
-              fallback: 'General',
-            );
-          }
-
-          // Customer name
-          String? customerName;
-          if (task['customerId'] is Map) {
-            customerName = _safeStr(
-              (task['customerId'] as Map)['name'],
-              fallback: '',
-            );
-            if (customerName.isEmpty) customerName = null;
-          }
-
-          // Start date
-          final startDate = _formatTaskDate(
-            _safeStr(task['startDateTime']).isNotEmpty
-                ? task['startDateTime']
-                : _safeStr(task['createdAt']),
-          );
-
-          return GestureDetector(
-            onTap: () {
-              context.push('/task-details', extra: rawTask);
-            },
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.grey.shade200),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withValues(alpha: 0.08),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Stack(
-                children: [
-                  // Left color strip
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    bottom: 0,
-                    child: Container(
-                      width: 5,
-                      decoration: BoxDecoration(
-                        color: statusColor,
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(10),
-                          bottomLeft: Radius.circular(10),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Row 1: Task ID + Status + Priority
-                        Row(
-                          children: [
-                            if (taskId.isNotEmpty) ...[
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary.withValues(
-                                    alpha: 0.1,
-                                  ),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: AppText(
-                                  taskId,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                            ],
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: statusColor,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: AppText(
-                                status[0].toUpperCase() + status.substring(1),
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const Spacer(),
-                            if (priority.toLowerCase() != 'normal') ...[
-                              Icon(
-                                priority.toLowerCase() == 'high'
-                                    ? Icons.arrow_upward_rounded
-                                    : (priority.toLowerCase() == 'medium'
-                                          ? Icons.remove_rounded
-                                          : Icons.arrow_downward_rounded),
-                                size: 14,
-                                color: priorityColor,
-                              ),
-                              const SizedBox(width: 2),
-                              AppText(
-                                priority[0].toUpperCase() +
-                                    priority.substring(1),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: priorityColor,
-                              ),
-                            ],
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        // Row 2: Description
-                        AppText(
-                          description,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 8),
-                        // Row 3: Assignee + Type + Date
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.person_outline,
-                              size: 14,
-                              color: Colors.grey.shade500,
-                            ),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: AppText(
-                                assigneeName,
-                                fontSize: 11,
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w500,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Container(
-                              width: 1,
-                              height: 12,
-                              color: Colors.grey.shade300,
-                            ),
-                            const SizedBox(width: 10),
-                            Icon(
-                              Icons.category_outlined,
-                              size: 14,
-                              color: Colors.grey.shade500,
-                            ),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: AppText(
-                                taskType,
-                                fontSize: 11,
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w500,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (customerName != null) ...[
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.business_outlined,
-                                size: 14,
-                                color: Colors.grey.shade500,
-                              ),
-                              const SizedBox(width: 4),
-                              Flexible(
-                                child: AppText(
-                                  customerName,
-                                  fontSize: 11,
-                                  color: Colors.grey.shade600,
-                                  fontWeight: FontWeight.w500,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.access_time,
-                              size: 13,
-                              color: Colors.grey.shade400,
-                            ),
-                            const SizedBox(width: 4),
-                            AppText(
-                              startDate,
-                              fontSize: 10,
-                              color: Colors.grey.shade500,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Tap arrow indicator
-                  Positioned(
-                    right: 8,
-                    top: 0,
-                    bottom: 0,
-                    child: Center(
-                      child: Icon(
-                        Icons.chevron_right_rounded,
-                        size: 20,
-                        color: Colors.grey.shade400,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
-      ],
-    );
-  }
-
-  Widget _buildChartCard(WidgetRef ref) {
-    final homeState = ref.watch(homeProvider);
-    final fieldMetrics = homeState.data?.fieldMetrics;
-    List<String> yLabels = ['4', '3', '2', '1', '0'];
-    List<String> xLabels = ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5'];
-    if (fieldMetrics != null) {
-      if (fieldMetrics.yLabels != null && fieldMetrics.yLabels!.isNotEmpty) {
-        yLabels = fieldMetrics.yLabels!;
-      }
-      if (fieldMetrics.dates != null && fieldMetrics.dates!.isNotEmpty) {
-        int length = fieldMetrics.dates!.length;
-        if (length > 0) {
-          xLabels = [];
-          int step = (length / 5).ceil();
-          for (int i = 0; i < 5; i++) {
-            if (i * step < length) {
-              xLabels.add(fieldMetrics.dates![i * step]);
-            } else {
-              xLabels.add('');
-            }
-          }
-        }
-      }
-    }
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(8),
-              ),
-              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
-            ),
-            child: const AppText(
-              'Collection - Month to Date',
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: SizedBox(
-              height: 200,
-              child: Row(
-                children: [
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: yLabels
-                        .map(
-                          (label) =>
-                              AppText(label, fontSize: 10, color: Colors.grey),
-                        )
-                        .toList(),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Stack(
-                      children: [
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: List.generate(
-                            yLabels.length,
-                            (index) =>
-                                Divider(color: Colors.grey.shade200, height: 1),
-                          ),
-                        ),
-
-                        Positioned(
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: xLabels
-                                .map((label) => _RotatedText(label))
-                                .toList(),
-                          ),
-                        ),
-                        // Right edge blue line from screenshot
-                        Positioned(
-                          right: 0,
-                          top: 0,
-                          bottom: 20, // leave space for x-axis
-                          child: Container(
-                            width: 4,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 

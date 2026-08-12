@@ -5,6 +5,7 @@ class ApiEndpoints {
 
   static const String baseUrl = 'https://www.namami-infotech.com/satya/api/v1';
   static const String login = '/employees/login';
+  static const String refreshToken = '/employees/refresh-token';
   static const String logout = '/employees/logout';
   static const String profile = '/profile';
   static const String home = '/home';

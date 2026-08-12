@@ -3,6 +3,7 @@ import '../../../core/api/api_service.dart';
 import '../model/login_model.dart';
 abstract class AuthRepository {
   Future<LoginModel> login(String email, String password);
+  Future<LoginModel> refreshToken(String refreshToken);
   Future<void> logout();
 }
 class AuthRepositoryImpl implements AuthRepository {
@@ -15,6 +16,17 @@ class AuthRepositoryImpl implements AuthRepository {
       data: {
         'email': email,
         'password': password,
+      },
+    );
+    return LoginModel.fromJson(response.data);
+  }
+
+  @override
+  Future<LoginModel> refreshToken(String refreshToken) async {
+    final response = await _apiService.post(
+      ApiEndpoints.refreshToken,
+      data: {
+        'refreshToken': refreshToken,
       },
     );
     return LoginModel.fromJson(response.data);

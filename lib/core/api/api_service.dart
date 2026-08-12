@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import './api_endpoints.dart';
 import './dio_client.dart';
@@ -13,6 +14,8 @@ final apiServiceProvider = Provider<ApiService>((ref) {
 
 class ApiService {
   late final Dio _dio;
+  bool _isRefreshing = false;
+  Completer<String?>? _refreshTokenCompleter;
 
   ApiService() {
     _dio = DioClient.getInstance();
@@ -43,15 +46,138 @@ class ApiService {
         },
         onError: (DioException e, handler) async {
           if (e.response?.statusCode == 401) {
-            await LocalStorage.clear();
+            final path = e.requestOptions.path;
+            final isRetry = e.requestOptions.extra['isRetry'] == true;
 
-            AppRouter.router.go('/login');
+            // If this request was already retried or is login/refresh-token itself, fail & redirect to login
+            if (isRetry ||
+                path.contains(ApiEndpoints.refreshToken) ||
+                path.contains(ApiEndpoints.login)) {
+              await LocalStorage.clear();
+              AppRouter.router.go('/login');
+              return handler.next(e);
+            }
+
+            final newToken = await _tryRefreshToken();
+            if (newToken != null && newToken.isNotEmpty) {
+              try {
+                final options = e.requestOptions;
+                options.extra['isRetry'] = true;
+                options.headers['Authorization'] = 'Bearer $newToken';
+                final currentRefreshToken = await LocalStorage.getRefreshToken();
+                if (currentRefreshToken != null && currentRefreshToken.isNotEmpty) {
+                  options.headers['Cookie'] =
+                      'accessToken=$newToken; refreshToken=$currentRefreshToken';
+                } else {
+                  options.headers['Cookie'] = 'accessToken=$newToken';
+                }
+
+                final response = await _dio.fetch(options);
+                return handler.resolve(response);
+              } catch (retryError) {
+                if (retryError is DioException) {
+                  return handler.next(retryError);
+                }
+                return handler.next(e);
+              }
+            } else {
+              await LocalStorage.clear();
+              AppRouter.router.go('/login');
+              return handler.next(e);
+            }
           }
           return handler.next(e);
         },
       ),
     );
   }
+
+  Future<String?> _tryRefreshToken() async {
+    if (_isRefreshing) {
+      return await _refreshTokenCompleter?.future;
+    }
+
+    _isRefreshing = true;
+    _refreshTokenCompleter = Completer<String?>();
+
+    try {
+      final refreshToken = await LocalStorage.getRefreshToken();
+      final accessToken = await LocalStorage.getToken();
+
+      if (refreshToken == null || refreshToken.isEmpty) {
+        _refreshTokenCompleter?.complete(null);
+        _isRefreshing = false;
+        return null;
+      }
+
+      final refreshDio = Dio(
+        BaseOptions(
+          baseUrl: ApiEndpoints.baseUrl,
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      final headers = <String, dynamic>{
+        'Content-Type': 'application/json',
+      };
+
+      if (accessToken != null && accessToken.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $accessToken';
+        headers['Cookie'] = 'accessToken=$accessToken; refreshToken=$refreshToken';
+      } else {
+        headers['Cookie'] = 'refreshToken=$refreshToken';
+      }
+
+      final response = await refreshDio.post(
+        ApiEndpoints.refreshToken,
+        data: {
+          'refreshToken': refreshToken,
+        },
+        options: Options(headers: headers),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        String? newAccessToken;
+        String? newRefreshToken;
+
+        if (response.data is Map<String, dynamic>) {
+          final resMap = response.data as Map<String, dynamic>;
+          final dataMap = resMap['data'];
+          if (dataMap is Map<String, dynamic>) {
+            newAccessToken = dataMap['accessToken']?.toString() ?? dataMap['token']?.toString();
+            newRefreshToken = dataMap['refreshToken']?.toString();
+          } else {
+            newAccessToken = resMap['accessToken']?.toString() ?? resMap['token']?.toString();
+            newRefreshToken = resMap['refreshToken']?.toString();
+          }
+        }
+
+        if (newAccessToken != null && newAccessToken.isNotEmpty) {
+          await LocalStorage.saveToken(newAccessToken);
+          if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
+            await LocalStorage.saveRefreshToken(newRefreshToken);
+          }
+          _refreshTokenCompleter?.complete(newAccessToken);
+          _isRefreshing = false;
+          return newAccessToken;
+        }
+      }
+
+      _refreshTokenCompleter?.complete(null);
+      _isRefreshing = false;
+      return null;
+    } catch (e) {
+      _refreshTokenCompleter?.complete(null);
+      _isRefreshing = false;
+      return null;
+    }
+  }
+
   Future<Response> get(String path,
       {Map<String, dynamic>? queryParameters, Options? options}) async {
     try {
