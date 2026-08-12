@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/app_card_skeleton.dart';
+import '../../attendance/provider/punch_in_provider.dart';
+import '../../attendance/widget/punch_in_dialog.dart';
 import '../provider/task_provider.dart';
 
 class TaskDetailsScreen extends ConsumerStatefulWidget {
@@ -158,6 +160,11 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
                             if (status.toLowerCase() == 'pending')
                               ElevatedButton.icon(
                                 onPressed: () {
+                                  final punchState = ref.read(punchInProvider);
+                                  if (punchState.isPunchedIn != true) {
+                                    showPunchInRequiredDialog(context, ref);
+                                    return;
+                                  }
                                   context.push(
                                     '/complete-task',
                                     extra: widget.taskExtra,

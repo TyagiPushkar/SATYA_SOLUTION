@@ -13,10 +13,20 @@ import '../../task/provider/task_provider.dart';
 import './main_screen.dart';
 import '../provider/employee_tasks_provider.dart';
 
-class HomeContent extends ConsumerWidget {
+class HomeContent extends ConsumerStatefulWidget {
   const HomeContent({super.key});
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeContent> createState() => _HomeContentState();
+}
+
+class _HomeContentState extends ConsumerState<HomeContent> {
+  bool _isDialogShowing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    _checkAndShowPunchPrompt();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8), // Light bluish background
       drawer: const AppDrawer(),
@@ -54,6 +64,212 @@ class HomeContent extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  void _checkAndShowPunchPrompt() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final punchState = ref.read(punchInProvider);
+      final isDismissed = ref.read(punchPromptDismissedProvider);
+      final user = ref.read(currentUserProvider).value;
+
+      if (punchState.isInitialized &&
+          punchState.isPunchedIn != true &&
+          !isDismissed &&
+          !_isDialogShowing) {
+        _isDialogShowing = true;
+        _showPunchPromptDialog(user?.id ?? 7);
+      }
+    });
+  }
+
+  void _showPunchPromptDialog(int empId) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        return Consumer(
+          builder: (context, ref, child) {
+            final punchState = ref.watch(punchInProvider);
+
+            if (punchState.isPunchedIn == true) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (Navigator.of(dialogContext).canPop()) {
+                  Navigator.of(dialogContext).pop();
+                }
+              });
+            }
+
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              elevation: 8,
+              backgroundColor: Colors.white,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 24,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 68,
+                      height: 68,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.fingerprint_rounded,
+                        size: 38,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const AppText(
+                      'Punch In Required',
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'You have not punched in today. Please punch in to start your work day.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade700,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 46,
+                      child: ElevatedButton(
+                        onPressed: punchState.isLoading
+                            ? null
+                            : () async {
+                                final resultMsg = await ref
+                                    .read(punchInProvider.notifier)
+                                    .togglePunchIn(empId: empId);
+                                if (resultMsg != null && context.mounted) {
+                                  final isError = resultMsg.startsWith(
+                                    'ERROR:',
+                                  );
+                                  final displayMsg = isError
+                                      ? resultMsg
+                                            .replaceFirst('ERROR:', '')
+                                            .trim()
+                                      : resultMsg;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Row(
+                                        children: [
+                                          Icon(
+                                            isError
+                                                ? Icons.error_outline
+                                                : Icons.check_circle_outline,
+                                            color: Colors.white,
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Text(
+                                              displayMsg,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      backgroundColor: isError
+                                          ? Colors.red.shade700
+                                          : Colors.green.shade700,
+                                      duration: const Duration(seconds: 4),
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: punchState.isLoading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2.5,
+                                ),
+                              )
+                            : const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.touch_app_rounded, size: 20),
+                                  SizedBox(width: 8),
+                                  AppText(
+                                    'Punch In',
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 40,
+                      child: TextButton(
+                        onPressed: () {
+                          ref
+                              .read(punchPromptDismissedProvider.notifier)
+                              .dismiss();
+                          Navigator.of(dialogContext).pop();
+                        },
+                        style: TextButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const AppText(
+                          'Close & Continue',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ).then((_) {
+      if (mounted) {
+        setState(() {
+          _isDialogShowing = false;
+        });
+        ref.read(punchPromptDismissedProvider.notifier).dismiss();
+      }
+    });
   }
 
   Widget _buildHeaderAndPunchSection(BuildContext context, WidgetRef ref) {
@@ -476,6 +692,7 @@ class HomeContent extends ConsumerWidget {
                   child: _buildTaskStatBox(
                     labelPending,
                     subPending,
+
                     pendingPercent,
                     isAmountCard
                         ? null

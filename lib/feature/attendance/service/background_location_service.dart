@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
@@ -12,8 +13,30 @@ import '../model/unsynced_punch_record.dart';
 import 'offline_sync_service.dart';
 
 class BackgroundLocationService {
+  static const String notificationChannelId = 'field_visit_location_channel';
+  static const int notificationId = 888;
+
   static Future<void> initializeService() async {
     final service = FlutterBackgroundService();
+
+    try {
+      const AndroidNotificationChannel channel = AndroidNotificationChannel(
+        notificationChannelId,
+        'Field Visit Location Tracking',
+        description: 'Tracks location in background for active field visits',
+        importance: Importance.low,
+      );
+
+      final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+          FlutterLocalNotificationsPlugin();
+
+      await flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(channel);
+    } catch (e) {
+      debugPrint('Error creating notification channel: $e');
+    }
 
     await service.configure(
       androidConfiguration: AndroidConfiguration(
@@ -21,11 +44,11 @@ class BackgroundLocationService {
         autoStart: false,
         autoStartOnBoot: true,
         isForegroundMode: true,
-        notificationChannelId: 'field_visit_location_channel',
+        notificationChannelId: notificationChannelId,
         initialNotificationTitle: 'Field Visit Tracking Active',
         initialNotificationContent:
             'Streaming location updates in background until Punch Out',
-        foregroundServiceNotificationId: 888,
+        foregroundServiceNotificationId: notificationId,
         foregroundServiceTypes: [AndroidForegroundType.location],
       ),
       iosConfiguration: IosConfiguration(
@@ -52,10 +75,16 @@ class BackgroundLocationService {
         final service = FlutterBackgroundService();
         final isRunning = await service.isRunning();
         if (!isRunning) {
-          await service.startService();
+          try {
+            await service.startService();
+          } catch (e) {
+            debugPrint('Error starting background service: $e');
+          }
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error in startLocationTracking: $e');
+    }
   }
 
   static Future<void> stopLocationTracking() async {
@@ -254,6 +283,62 @@ void onStart(ServiceInstance service) async {
         socket?.dispose();
         service.stopSelf();
         return;
+      }
+
+      // Auto punch-out check at 7:00 PM (19:00)
+      final autoPunchOutNow = DateTime.now();
+      final timeStr = await LocalStorage.getPunchInTime();
+      if (timeStr != null) {
+        final punchInTime = DateTime.tryParse(timeStr);
+        if (punchInTime != null) {
+          DateTime target7PM;
+          if (punchInTime.hour < 19) {
+            target7PM = DateTime(
+              punchInTime.year,
+              punchInTime.month,
+              punchInTime.day,
+              19,
+              0,
+              0,
+            );
+          } else {
+            final nextDay = punchInTime.add(const Duration(days: 1));
+            target7PM = DateTime(
+              nextDay.year,
+              nextDay.month,
+              nextDay.day,
+              19,
+              0,
+              0,
+            );
+          }
+
+          if (autoPunchOutNow.isAfter(target7PM) ||
+              autoPunchOutNow.isAtSameMomentAs(target7PM)) {
+            print(
+              '=== Background Location Service: 7:00 PM Auto Punch Out Triggered! ===',
+            );
+            int empId = await _getEmpId();
+            final locRecord = UnsyncedPunchRecord(
+              id: 'punch_out_auto_${autoPunchOutNow.millisecondsSinceEpoch}',
+              type: 'clockOut',
+              timestamp: autoPunchOutNow.toIso8601String(),
+              latitude: lastLat ?? 26.8467,
+              longitude: lastLng ?? 80.9462,
+              remarks: 'Auto Punch Out at 7:00 PM',
+              empId: empId,
+            );
+            await OfflineSyncService.addPendingRecord(locRecord);
+            await LocalStorage.savePunchStatus(false);
+
+            timer?.cancel();
+            await positionStreamSub?.cancel();
+            socket?.disconnect();
+            socket?.dispose();
+            service.stopSelf();
+            return;
+          }
+        }
       }
 
       Position? currentPos;

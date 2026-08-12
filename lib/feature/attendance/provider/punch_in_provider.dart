@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/foundation.dart';
@@ -21,6 +22,7 @@ class PunchInState {
   final DateTime? punchOutTime;
   final bool isLoading;
   final String? error;
+  final bool isInitialized;
 
   const PunchInState({
     this.isPunchedIn = false,
@@ -28,6 +30,7 @@ class PunchInState {
     this.punchOutTime,
     this.isLoading = false,
     this.error,
+    this.isInitialized = false,
   });
 
   PunchInState copyWith({
@@ -36,6 +39,7 @@ class PunchInState {
     DateTime? punchOutTime,
     bool? isLoading,
     String? error,
+    bool? isInitialized,
   }) {
     return PunchInState(
       isPunchedIn: isPunchedIn ?? this.isPunchedIn,
@@ -43,13 +47,19 @@ class PunchInState {
       punchOutTime: punchOutTime ?? this.punchOutTime,
       isLoading: isLoading ?? this.isLoading,
       error: error,
+      isInitialized: isInitialized ?? this.isInitialized,
     );
   }
 }
 
 class PunchInNotifier extends Notifier<PunchInState> {
+  Timer? _autoPunchOutTimer;
+
   @override
   PunchInState build() {
+    ref.onDispose(() {
+      _autoPunchOutTimer?.cancel();
+    });
     _restorePunchState();
     return const PunchInState(isPunchedIn: false, isLoading: false);
   }
@@ -61,10 +71,76 @@ class PunchInNotifier extends Notifier<PunchInState> {
     if (timeStr != null) {
       punchInTime = DateTime.tryParse(timeStr);
     }
-    state = state.copyWith(isPunchedIn: isPunchedIn, punchInTime: punchInTime);
+    state = state.copyWith(
+      isPunchedIn: isPunchedIn,
+      punchInTime: punchInTime,
+      isInitialized: true,
+    );
     if (isPunchedIn) {
       BackgroundLocationService.startLocationTracking();
+      _checkAndScheduleAutoPunchOut();
     }
+  }
+
+  void _checkAndScheduleAutoPunchOut() {
+    _autoPunchOutTimer?.cancel();
+    if (!state.isPunchedIn) return;
+
+    final now = DateTime.now();
+    final punchInTime = state.punchInTime ?? now;
+
+    DateTime target7PM;
+    if (punchInTime.hour < 19) {
+      target7PM = DateTime(
+        punchInTime.year,
+        punchInTime.month,
+        punchInTime.day,
+        19,
+        0,
+        0,
+      );
+    } else {
+      final nextDay = punchInTime.add(const Duration(days: 1));
+      target7PM = DateTime(
+        nextDay.year,
+        nextDay.month,
+        nextDay.day,
+        19,
+        0,
+        0,
+      );
+    }
+
+    if (now.isAfter(target7PM) || now.isAtSameMomentAs(target7PM)) {
+      debugPrint('=== AUTO PUNCH OUT TRIGGERED (Past 7:00 PM) ===');
+      _triggerAutoPunchOut();
+    } else {
+      final durationUntil7PM = target7PM.difference(now);
+      debugPrint(
+        '=== AUTO PUNCH OUT SCHEDULED IN: ${durationUntil7PM.inMinutes} mins (At 7:00 PM) ===',
+      );
+      _autoPunchOutTimer = Timer(durationUntil7PM, () {
+        debugPrint('=== AUTO PUNCH OUT TIMER FIRED AT 7:00 PM ===');
+        _triggerAutoPunchOut();
+      });
+    }
+  }
+
+  Future<void> _triggerAutoPunchOut() async {
+    if (!state.isPunchedIn) return;
+    int empId = 7;
+    try {
+      final empJson = await LocalStorage.getEmployeeData();
+      if (empJson != null && empJson.isNotEmpty) {
+        final map = jsonDecode(empJson) as Map<String, dynamic>;
+        if (map['id'] != null) {
+          empId = (map['id'] is int)
+              ? map['id']
+              : (int.tryParse(map['id'].toString()) ?? 7);
+        }
+      }
+    } catch (_) {}
+    await togglePunchIn(empId: empId);
   }
 
   Future<Position> _getLocationOrThrow() async {
@@ -216,6 +292,7 @@ class PunchInNotifier extends Notifier<PunchInState> {
 
     if (!isNowPunchedIn) {
       // PUNCH OUT:
+      _autoPunchOutTimer?.cancel();
       await LocalStorage.savePunchStatus(false);
       await BackgroundLocationService.stopLocationTracking();
 
@@ -344,6 +421,8 @@ class PunchInNotifier extends Notifier<PunchInState> {
           error: null,
         );
 
+        _checkAndScheduleAutoPunchOut();
+
         return 'Punched In Offline! Data saved locally & will auto-sync when internet connects.';
       }
 
@@ -378,6 +457,8 @@ class PunchInNotifier extends Notifier<PunchInState> {
           error: null,
         );
 
+        _checkAndScheduleAutoPunchOut();
+
         return serverMsg;
       } catch (e) {
         String errorMsg = 'Unable to connect to server';
@@ -411,6 +492,8 @@ class PunchInNotifier extends Notifier<PunchInState> {
             error: null,
           );
 
+          _checkAndScheduleAutoPunchOut();
+
           return 'Punched In Offline (Network Error)! Data saved locally & will auto-sync when internet connects.';
         } else if (e is AppException) {
           errorMsg = e.message;
@@ -431,3 +514,21 @@ class PunchInNotifier extends Notifier<PunchInState> {
 final punchInProvider = NotifierProvider<PunchInNotifier, PunchInState>(() {
   return PunchInNotifier();
 });
+
+class PunchPromptDismissedNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void dismiss() {
+    state = true;
+  }
+
+  void reset() {
+    state = false;
+  }
+}
+
+final punchPromptDismissedProvider =
+    NotifierProvider<PunchPromptDismissedNotifier, bool>(
+  PunchPromptDismissedNotifier.new,
+);

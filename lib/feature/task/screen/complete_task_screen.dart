@@ -5,6 +5,8 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/custom_app_bar.dart';
+import '../../attendance/provider/punch_in_provider.dart';
+import '../../attendance/widget/punch_in_dialog.dart';
 import '../helper/complete_task_helper.dart';
 import '../provider/complete_task_fields_provider.dart';
 import '../provider/complete_task_form_state_provider.dart';
@@ -161,12 +163,19 @@ class _CompleteTaskScreenState extends ConsumerState<CompleteTaskScreen> {
                     child: ElevatedButton(
                       onPressed: formState.isSubmitting
                           ? null
-                          : () => CompleteTaskHelper.submitForm(
-                              context,
-                              ref,
-                              fields,
-                              _getTaskId(),
-                            ),
+                          : () {
+                              final punchState = ref.read(punchInProvider);
+                              if (punchState.isPunchedIn != true) {
+                                showPunchInRequiredDialog(context, ref);
+                                return;
+                              }
+                              CompleteTaskHelper.submitForm(
+                                context,
+                                ref,
+                                fields,
+                                _getTaskId(),
+                              );
+                            },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         shape: RoundedRectangleBorder(

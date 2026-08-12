@@ -16,6 +16,8 @@ import '../provider/task_form_fields_provider.dart';
 import '../provider/task_provider.dart';
 import '../provider/task_types_provider.dart';
 import '../provider/task_creation_provider.dart';
+import '../../attendance/provider/punch_in_provider.dart';
+import '../../attendance/widget/punch_in_dialog.dart';
 
 class CreateTaskScreen extends ConsumerStatefulWidget {
   const CreateTaskScreen({super.key});
@@ -659,7 +661,14 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
               fontSize: 13,
               isLoading: isCreating,
               padding: EdgeInsets.zero,
-              onTap: _submitTask,
+              onTap: () {
+                final punchState = ref.read(punchInProvider);
+                if (punchState.isPunchedIn != true) {
+                  showPunchInRequiredDialog(context, ref);
+                  return;
+                }
+                _submitTask();
+              },
             ),
           ),
         ],

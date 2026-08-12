@@ -8,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/widgets/app_snackbar.dart';
 import '../../home/screen/main_screen.dart';
+import '../../attendance/provider/punch_in_provider.dart';
+import '../../attendance/widget/punch_in_dialog.dart';
 import '../provider/complete_task_fields_provider.dart';
 import '../provider/complete_task_form_state_provider.dart';
 import '../provider/task_provider.dart';
@@ -261,6 +263,12 @@ class CompleteTaskHelper {
     List<CompleteTaskFormField> fields,
     String taskId,
   ) async {
+    final punchState = ref.read(punchInProvider);
+    if (punchState.isPunchedIn != true) {
+      showPunchInRequiredDialog(context, ref);
+      return;
+    }
+
     final notifier = ref.read(completeTaskFormStateProvider.notifier);
 
     final success = await notifier.submitTask(fields: fields, taskId: taskId);
